@@ -9,30 +9,6 @@ class TweetEnricher:
     Class that adds features to tweets collected
     """
     def __init__(self):
-        self.negative_opinion_feature = 0
-        self.positive_opinion_feature = 0
-        self.opinion_feature = 0
-        self.vulgar_words_feature = 0
-        self.emoticon_feature = 0
-        self.enriched_tweets = []
-        self.verb_tags = ['VB', 'VBD', 'VBG', 'VBN', 'VBP', 'VBZ']
-        self.adjective_tags = ['JJ', 'JJR', 'JJS']
-        self.interjection_tags = ['UH']
-        self.twitter_tags = ['RT', '@', '#']
-        self.verbs = []
-        self.punctuation_feature = 0
-        self.question_feature = 0
-        self.recommendation_feature = 0
-        self.intergection_feature = 0
-        self.adjective_feature = 0
-        self.retweet_position_feature = 0
-        self.retweet_feature = 0
-        self.hashtag_feature = 0
-        self.hashtag_position_feature = 0
-        self.reply_position_feature = 0
-        self.reply_feature = 0
-        self.web_abbreviations_feature = 0
-        self.twitter_jargons_feature = 0
         self.tokenizer = TweetTokenizer()
         self.stopset = set(stopwords.words('english'))
         self.negative_opinions = opinion_lexicon.negative()
