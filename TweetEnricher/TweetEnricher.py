@@ -18,7 +18,6 @@ class TweetEnricher:
         self.web_abbreviations = [line.rstrip('\n') for line in open('../Data/Lists/WebAcronymns')]
         self.emoticons_list = [line.rstrip('\n') for line in open('../Data/Lists/EmojiList')]
 
-
     def tokenize(self,tweet):
         """
         Tokens created using nltk tokenizer
