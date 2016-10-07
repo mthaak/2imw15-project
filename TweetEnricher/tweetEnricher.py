@@ -2,7 +2,9 @@ import nltk
 from nltk.tokenize import TweetTokenizer
 from nltk.corpus import stopwords
 from nltk.corpus import opinion_lexicon
-import string,re
+import string
+import re
+from nltk.stem.porter import *
 
 class TweetEnricher:
     """
@@ -10,6 +12,7 @@ class TweetEnricher:
     """
     def __init__(self):
         self.tokenizer = TweetTokenizer()
+        self.stemmer = PorterStemmer()
         self.stopset = set(stopwords.words('english'))
         self.negative_opinions = opinion_lexicon.negative()
         self.positive_opinions = opinion_lexicon.positive()
@@ -17,6 +20,8 @@ class TweetEnricher:
         self.twitter_jargons = [line.rstrip('\n') for line in open('../Data/Lists/TwitterSlangsAndAbbreviations')]
         self.web_abbreviations = [line.rstrip('\n') for line in open('../Data/Lists/WebAcronymns')]
         self.emoticons_list = [line.rstrip('\n') for line in open('../Data/Lists/EmojiList')]
+        self.speech_act_verbs = [line.rstrip('\n') for line in open('../Data/Lists/StemmedSpeechActVerbs')]
+        self.verb_tags = ['VB', 'VBD', 'VBG', 'VBN', 'VBP', 'VBZ']
 
     def tokenize(self,tweet):
         """
@@ -177,3 +182,68 @@ class TweetEnricher:
             if re.findall('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', w):
                 return 1
         return 0
+
+    def hasSpeechActVerbs(self,tokens):
+        '''
+        Returns 265 binary features for the speech act verbs
+        :param tokens:
+        :return: a dictionary
+        '''
+        speech_act_feature_dict = {}        # dict stores the 265 features
+        for w in self.speech_act_verbs:     # initializing
+            speech_act_feature_dict[w] = 0
+        pos_list = nltk.pos_tag(tokens)
+        for entry in pos_list:
+            if entry[1] in self.verb_tags:   # check if the tokens that are verbs are speech act verbs
+                verb = self.stemmer.stem(entry[0].lower())
+                if verb in self.speech_act_verbs:
+                    speech_act_feature_dict[verb] = 1
+        return speech_act_feature_dict
+
+
+    def enrichTweets(self, row, tokens):
+        """
+        Features added to a row of data.
+        :param row:
+        :param tokens:
+        :return: Returns a row with features added
+        """
+        # remove stop words
+        tokens = self.removeStopWords(tokens)
+        # add negative opinion feature
+        row.append(self.hasNegativeOpinions(tokens))
+        # add positive opinions feature
+        row.append(self.hasPositiveOpinions(tokens))
+        # add  Vulgar words feature
+        row.append(self.hasVulgarWords(tokens))
+        # add Emoticons feature
+        row.append(self.hasEmoticons(tokens))
+        # add Interrogation feature
+        row.append(self.isInterrogative(tokens))
+        # add Exclamation feature
+        row.append((self.isExclamatory(tokens)))
+        # add Abbreviations feature
+        row.append(self.hasAbbreviations(tokens))
+        # add twitter jargons feature
+        row.append(self.hasTwitterJargons(tokens))
+        # add Twiiter specific characters' features- presence and position
+        presence, position = self.hasHash(tokens)
+        row.append(presence)
+        row.append(position)
+
+        presence, position = self.hasATag(tokens)
+        row.append(presence)
+        row.append(position)
+
+        presence, position = self.hasRT(tokens)
+        row.append(presence)
+        row.append(position)
+
+        # add URL presence feature
+        row.append(self.hasALink(tokens))
+        #add speech act verbs features
+        sac_feature_dict = self.hasSpeechActVerbs(tokens)
+        for verb in self.speech_act_verbs:
+              row.append(sac_feature_dict.get(verb))
+
+        return row
