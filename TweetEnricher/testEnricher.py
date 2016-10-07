@@ -1,5 +1,7 @@
 import csv
-from tweet_Enricher import *
+
+from TweetEnricher.tweetEnricher import TweetEnricher
+from tweetEnricher import *
 
 READ_FILENAME="../Data/tweets.csv"
 WRITE_FILENAME="../Data/enrichedTweets.csv"
@@ -16,50 +18,8 @@ with open(READ_FILENAME, encoding='utf-8') as csv_file:
         #tokenize the tweet text
         tokens = tweet_enricher.tokenize(row[3])
 
-        #remove stop words
-        tokens = tweet_enricher.removeStopWords(tokens)
-
-        #add negative opinion feature
-        row.append(tweet_enricher.hasNegativeOpinions(tokens))
-
-        #add positive opinions feature
-        row.append(tweet_enricher.hasPositiveOpinions(tokens))
-
-        #add  Vulgar words feature
-        row.append(tweet_enricher.hasVulgarWords(tokens))
-
-        #add Emoticons feature
-        row.append(tweet_enricher.hasEmoticons(tokens))
-
-        #add Interrogation feature
-        row.append(tweet_enricher.isInterrogative(tokens))
-
-        #add Exclamation feature
-        row.append((tweet_enricher.isExclamatory(tokens)))
-
-        #add Abbreviations feature
-        row.append(tweet_enricher.hasAbbreviations(tokens))
-
-        #add twitter jargons feature
-        row.append(tweet_enricher.hasTwitterJargons(tokens))
-
-        #add Twiiter specific characters' features- presence and position
-        presence, position = tweet_enricher.hasHash(tokens)
-        row.append(presence)
-        row.append(position)
-
-        presence, position = tweet_enricher.hasATag(tokens)
-        row.append(presence)
-        row.append(position)
-
-        presence, position = tweet_enricher.hasRT(tokens)
-        row.append(presence)
-        row.append(position)
-
-        #add URL presence feature
-        row.append(tweet_enricher.hasALink(tokens))
-
-        enriched_tweets.append(row)
+        # enrich tweets and store in list
+        enriched_tweets.append(tweet_enricher.enrichTweets(row,tokens))
 
 # Write enriched tweets to file
 with open(WRITE_FILENAME, 'w', encoding='utf-8', newline='') as csv_out_file:
