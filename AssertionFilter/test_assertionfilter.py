@@ -4,7 +4,7 @@ from sklearn import *
 from assertionfilter import *
 
 READ_FILENAME = "../Data/tweets.csv"
-WRITE_FILENAME = "../Data/filtered_tweets.csv"
+WRITE_FILENAME = "../Data/tweets_filtered.csv"
 tweets = []  # data of tweets
 labels = []  # labels of tweets
 indices_labeled = []  # indices of labeled tweets
@@ -62,18 +62,3 @@ with open(WRITE_FILENAME, 'w', encoding='utf-8', newline='') as csv_file:
     writer = csv.writer(csv_file, delimiter='\t')
     for tweet in filtered_tweets:
         writer.writerow(tweet)
-
-# FOR TESTING DIFFERENT CLASSIFIERS
-# classifiers = [
-#     sklearn.dummy.DummyClassifier(strategy='most_frequent'),
-#     sklearn.naive_bayes.MultinomialNB(),
-#     sklearn.svm.LinearSVC(),
-#     sklearn.linear_model.LogisticRegression(),
-#     sklearn.ensemble.RandomForestClassifier(n_estimators=10),
-#     sklearn.ensemble.AdaBoostClassifier(n_estimators=100)
-# ]
-#
-# for classifier in classifiers:
-#     assertion_filter = AssertionFilter(classifier)
-#     score = assertion_filter.evaluate(count_matrix, labels)
-#     print(classifier, '\033[33m', score, '\033[0m')
