@@ -1,0 +1,16 @@
+score,classifier,learning_rate,n_estimators,algorithm
+0.516042128549,AdaBoostClassifier,0.1,25,SAMME.R
+0.548545028206,AdaBoostClassifier,0.1,50,SAMME.R
+0.562780326168,AdaBoostClassifier,0.1,100,SAMME.R
+0.53227248087,AdaBoostClassifier,0.6,25,SAMME.R
+0.586693904357,AdaBoostClassifier,0.6,50,SAMME.R
+0.563959316009,AdaBoostClassifier,0.6,100,SAMME.R
+0.538827485318,AdaBoostClassifier,1.1,25,SAMME.R
+0.583449237413,AdaBoostClassifier,1.1,50,SAMME.R
+0.556181806461,AdaBoostClassifier,1.1,100,SAMME.R
+0.535273340859,AdaBoostClassifier,1.6,25,SAMME.R
+0.594345738034,AdaBoostClassifier,1.6,50,SAMME.R
+0.571464813617,AdaBoostClassifier,1.6,100,SAMME.R
+0.367231780195,AdaBoostClassifier,2.1,25,SAMME.R
+0.218700221818,AdaBoostClassifier,2.1,50,SAMME.R
+0.229648185249,AdaBoostClassifier,2.1,100,SAMME.R
