@@ -49,17 +49,3 @@ class AssertionFilter:
         assert len(tweets) == X.shape[0] == len(y)
         filter_ids = [i for i in range(len(y)) if y[i] == self.keep_label]
         return tweets[filter_ids], X[filter_ids], y[filter_ids]
-
-    def evaluate(self, X, y, n_folds=10):
-        """
-        Evaluates the classifier by cross validation and returns the average f1 score.
-        :param X: matrix of features
-        :param y: array of labels
-        :param n_folds: number of folds for cross validation
-        :return: float average f1 score
-        """
-        assert X.shape[0] == len(y)
-        assert type(n_folds) == int
-        # Calculates the F1-score by cross validation of model
-        f1_scores = sklearn.cross_validation.cross_val_score(self.classifier, X, y, scoring='f1_weighted', cv=n_folds)
-        return numpy.mean(f1_scores)
