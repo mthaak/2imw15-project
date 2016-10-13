@@ -2,6 +2,7 @@ import tweepy
 import time
 import csv
 import pickle
+import re
 
 ################################################
 # INSTANTIATE API
@@ -49,19 +50,26 @@ def remaining_calls(resource, path):
     print(result)
     return result
 
-# Load all the OAuth handlers
-auths = []
-credentialsFile = open('twitter_credentials.csv', 'r')
-credentialsReader = csv.DictReader(credentialsFile)
-for cred in credentialsReader:
-    auth = tweepy.OAuthHandler(cred['consumer_key'], cred['consumer_secret'])
-    auth.set_access_token(cred['access_token'], cred['access_secret'])
-    auths.append(auth)
-if not auths:
-    raise ValueError('No OAuth handlers available.')
-print('Imported %s twitter credentials' % len(auths))
+
+def load_auth_handlers_from_file(filename):
+    """
+    Load all the OAuth handlers
+    :return: list of OAuth handlers
+    """
+    auths = []
+    credentials_file = open(filename, 'r')
+    credentials_reader = csv.DictReader(credentials_file)
+    for cred in credentials_reader:
+        auth = tweepy.OAuthHandler(cred['consumer_key'], cred['consumer_secret'])
+        auth.set_access_token(cred['access_token'], cred['access_secret'])
+        auths.append(auth)
+    if not auths:
+        raise ValueError('No OAuth handlers available.')
+    print('Imported %s twitter credentials' % len(auths))
+    return auths
 
 # Load the Twitter API
+auths = load_auth_handlers_from_file('twitter_credentials.csv')
 api = tweepy.API(auths[0], retry_count=3, retry_delay=5,
                  retry_errors={401, 404, 500, 503})
 api.auths = list(auths)
@@ -82,8 +90,13 @@ def list_tweets(cursor, resource, path):
             handle_rate_limit(resource, path)
 
 
-def get_all_tweets_of_user(screen_name):
-    """ Get up to all (3240 recent) tweets of given screen name """
+def check_keyword(s, key):
+    """ Check if keyword exists in string """
+    return bool(re.search(key, s, re.IGNORECASE))
+
+
+def get_all_tweets_of_user(screen_name, keywords=[]):
+    """ Get all (max 3240 recent) tweets of given screen name """
     assert isinstance(screen_name, str)
 
     # Resource from which we want to collect tweets
@@ -98,32 +111,40 @@ def get_all_tweets_of_user(screen_name):
         print("...%s tweets downloaded so far" % len(alltweets))
 
     # transform the tweepy tweets into a 2D array that will populate the csv
-    outtweets = [[tweet.author.id,
-                  tweet.author.name,
-                  tweet.id_str,
-                  tweet.created_at,
+    outtweets = [[tweet.id_str,
                   tweet.text.encode('utf-8'),
+                  tweet.created_at,
                   tweet.retweet_count,
+                  tweet.author.id,
+                  tweet.author.name,
                   tweet.author.followers_count,
                   tweet.author.friends_count,
-                  tweet.author.statuses_count] for tweet in alltweets]
+                  tweet.author.statuses_count,
+                  [k for k in keywords if check_keyword(tweet.text, k)]] for tweet in alltweets]
+
+    # Check keywords in tweets
+    # if not keywords:
+    #     pass
+    # else:
+    #     for tweet in outtweets:
+    #         tweet.append([k for k in keywords if check_keyword(tweet[1], k)])
 
     with open('results/%s_tweets.csv' % screen_name, 'w') as f:
         writer = csv.writer(f, delimiter="\t")
-        writer.writerow(["user_id", "screen_name", "tweet_id",
-                         "created_at", "text", "retweet_count",
-                         "#followers", "#followings", "#statuses"])
+        writer.writerow(["tweet_id", "text", "created_at", "retweet_count",
+                         "user_id", "screen_name", "#followers", "#followings",
+                         "#statuses", "keywords"])
         writer.writerows(outtweets)
 
 
-def get_all_tweets_of_users(list_of_users):
+def get_all_tweets_of_users(list_of_users, keywords=[]):
     """ Get the tweets all given users in list """
     assert isinstance(list_of_users, list) and all(isinstance(elem, str) for elem in list_of_users)
     for user in list_of_users:
-        get_all_tweets_of_user(user)
+        get_all_tweets_of_user(user, keywords)
 
 
-def get_tweets_of_users_in_file():
+def get_tweets_of_users_in_file(keywords=[]):
     """
     Loads a list of users from users.p
     pickle file and get their tweets
@@ -132,13 +153,19 @@ def get_tweets_of_users_in_file():
     users = pickle.load(open("users.p", "rb"))
 
     # Get their tweets
-    get_all_tweets_of_users(users)
+    get_all_tweets_of_users(users, keywords)
 
 
 def set_users(list_of_users):
     """ Add give users to pickle file """
     assert isinstance(list_of_users, list) and all(isinstance(elem, str) for elem in list_of_users)
     users = list_of_users
-    pickle.dump(users, open("users.p", "w"))
+    pickle.dump(users, open("users.p", "wb"))
 
-set_users(["twitter"])
+
+if __name__ == "__main__":
+    # Set users from whom to get tweets
+    set_users(["twitter"])
+
+    # Get tweets
+    get_tweets_of_users_in_file(["people", "twitter"])
