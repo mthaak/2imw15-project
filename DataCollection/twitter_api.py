@@ -165,7 +165,7 @@ def set_users(list_of_users):
 
 if __name__ == "__main__":
     # Set users from whom to get tweets
-    set_users(["twitter"])
+    set_users(list_of_users=["twitter"])
 
     # Get tweets
-    get_tweets_of_users_in_file(["people", "twitter"])
+    get_tweets_of_users_in_file(keywords=["people", "twitter"])
