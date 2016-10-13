@@ -1,8 +1,10 @@
 File results.csv
 This file uses "tab" as columns separator.
 This file is organized as follows (refer to the columns of the dataset as A, B, C, etc...):
-A        |B          |C    |D             |E       |F           |G          |H           |I
-tweet_id |created_at |text |retweet_count |user_id |screen_name |#followers |#followings |#statuses
+A        |B          |C    |D             |E       |F           |G          |H           |I         |J        |K       |
+tweet_id |created_at |text |retweet_count |user_id |screen_name |#followers |#followings |#statuses |keywords |hastags |
+L
+urls
 
 Columns meanings:
 A: tweet_id: it's not possible to use this data to retrieve new information with the twitter API because you're not allowed to
@@ -14,3 +16,6 @@ D: retweet_count: Number of retweets of given tweet
 E: user_id: User ID of the author of the tweet (type long)
 F: screen_name: User name of the author of the tweet, it's unique for every user (possible to query user information by the name)
 G, H, I: other information related to the author
+J: keywords: List of keywords which are present in the tweet text that the user search for
+K: hashtags: List of all hashtags present in the tweet
+L: urls: List of all (resolved) urls in the tweet
