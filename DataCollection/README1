@@ -1,0 +1,15 @@
+File results.csv
+This file uses "tab" as columns separator.
+This file is organized as follows (refer to the columns of the dataset as A, B, C, etc...):
+A	    |B           |C        |D          |E    |F          |G           |H
+user_id |screen_name |tweet_id |created_at |text |#followers |#followings |#statuses
+
+Columns meanings:
+A: user_id: User ID of the author of the tweet (type long)
+B: screen_name: User name of the author of the tweet, it's unique for every user (possible to query user information by the name)
+C: tweet_id: it's not possible to use this data to retrieve new information with the twitter API because you're not allowed to
+ trace tweets older than 1 week. By the way it's a useful information to discriminate tweets during data analysis. (type long)
+D: created_at: Date and time of the post (type long)
+E: text: Message sent by the author, sometimes you can see symbols instead of some special characters (accents, emoticons...),
+ you should manage this implementing an easy method to avoid errors while reading the text
+F, G, H: some information related to the author
