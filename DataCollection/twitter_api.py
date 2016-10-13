@@ -86,7 +86,8 @@ def list_tweets(cursor, resource, path):
     while True:
         try:
             yield cursor.next()
-        except tweepy.RateLimitError:
+        except tweepy.RateLimitError as e:
+            print(e.reason)
             handle_rate_limit(resource, path)
 
 
@@ -112,7 +113,7 @@ def get_all_tweets_of_user(screen_name, keywords=[]):
 
     # transform the tweepy tweets into a 2D array that will populate the csv
     outtweets = [[tweet.id_str,
-                  tweet.text.encode('utf-8'),
+                  tweet.text,
                   tweet.created_at,
                   tweet.retweet_count,
                   tweet.author.id,
@@ -120,20 +121,15 @@ def get_all_tweets_of_user(screen_name, keywords=[]):
                   tweet.author.followers_count,
                   tweet.author.friends_count,
                   tweet.author.statuses_count,
-                  [k for k in keywords if check_keyword(tweet.text, k)]] for tweet in alltweets]
+                  [k for k in keywords if check_keyword(tweet.text, k)],
+                  [hashtag['text'] for hashtag in tweet.entities['hashtags']],
+                  [url['expanded_url'] for url in tweet.entities['urls']]] for tweet in alltweets]
 
-    # Check keywords in tweets
-    # if not keywords:
-    #     pass
-    # else:
-    #     for tweet in outtweets:
-    #         tweet.append([k for k in keywords if check_keyword(tweet[1], k)])
-
-    with open('results/%s_tweets.csv' % screen_name, 'w') as f:
+    with open('results/%s_tweets.csv' % screen_name, 'w', encoding='utf8') as f:
         writer = csv.writer(f, delimiter="\t")
         writer.writerow(["tweet_id", "text", "created_at", "retweet_count",
                          "user_id", "screen_name", "#followers", "#followings",
-                         "#statuses", "keywords"])
+                         "#statuses", "keywords", "hashtags", "urls"])
         writer.writerows(outtweets)
 
 
@@ -141,6 +137,7 @@ def get_all_tweets_of_users(list_of_users, keywords=[]):
     """ Get the tweets all given users in list """
     assert isinstance(list_of_users, list) and all(isinstance(elem, str) for elem in list_of_users)
     for user in list_of_users:
+        print('Getting tweets for %s' % user)
         get_all_tweets_of_user(user, keywords)
 
 
@@ -165,7 +162,8 @@ def set_users(list_of_users):
 
 if __name__ == "__main__":
     # Set users from whom to get tweets
-    set_users(list_of_users=["twitter"])
+    set_users(list_of_users=['vote_leave', 'BorisJohnson', 'David_Cameron',
+                             'Nigel_Farage', 'michaelgove', 'George_Osborne'])
 
     # Get tweets
     get_tweets_of_users_in_file(keywords=["people", "twitter"])
