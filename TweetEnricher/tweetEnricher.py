@@ -3,8 +3,14 @@ from nltk.tokenize import TweetTokenizer
 from nltk.corpus import stopwords
 from nltk.corpus import opinion_lexicon
 import string
+import csv
 import re
+import numpy
 from nltk.stem.porter import *
+import numpy as np
+from sklearn.feature_extraction.text import CountVectorizer
+
+N_GRAM_COUNT_FILENAME = "../Data/NGramCountMatrix.csv"
 
 class TweetEnricher:
     """
@@ -22,6 +28,19 @@ class TweetEnricher:
         self.emoticons_list = [line.rstrip('\n') for line in open('../Data/Lists/EmojiList')]
         self.speech_act_verbs = [line.rstrip('\n') for line in open('../Data/Lists/StemmedSpeechActVerbs')]
         self.verb_tags = ['VB', 'VBD', 'VBG', 'VBN', 'VBP', 'VBZ']
+        self.n_gram_count_matrix = {}
+        self.vectorizer = CountVectorizer(ngram_range=(1, 3), tokenizer=self.tokenizer.tokenize,
+                                     stop_words=self.stopset and self.web_abbreviations)
+
+
+    def tweetFeatures(self):
+        self.tweet_features = ["NegativeOpnions", "PositiveOpnions", "VulgarWords", "Emoticons", "Interrogation",
+                               "Exclamation", "Abbreviations", "TwitterJargons", "#", "@", "RT", "Link"]
+        for w in self.speech_act_verbs:
+            self.tweet_features.append(w)
+        for w in self.n_gram_count_matrix:
+            self.tweet_features.append(w)
+        return self.tweet_features
 
     def tokenize(self,tweet):
         """
@@ -46,10 +65,11 @@ class TweetEnricher:
         :param tokens:
         :return: 1 if negative opinions present. 0 otherwise
         """
+        count = 0
         for w in tokens:
             if w in self.negative_opinions:
-                return 1
-        return 0
+                count = count + 1
+        return count
 
     def hasPositiveOpinions(self,tokens):
         '''
@@ -57,10 +77,11 @@ class TweetEnricher:
         :param tokens:
         :return: 1 if positive opinions present. 0 otherwise
         '''
+        count = 0
         for w in tokens:
             if w in self.positive_opinions:
-                return 1
-        return 0
+                count = count + 1
+        return count
 
     def hasVulgarWords(self,tokens):
         '''
@@ -200,14 +221,80 @@ class TweetEnricher:
                     speech_act_feature_dict[verb] = 1
         return speech_act_feature_dict
 
+    def collectNGramFeatures(self,tweet):
+        '''
+        Collects the n-grams from a tweet present in tweet that also occur through out the document more than 5 times
+        :param tweet:
+        :return: a count matrix
+        '''
 
-    def enrichTweets(self, row, tokens):
+        # initializing matrix to all 0s
+        tweet_n_gram_count_matrix = {}
+        for item in self.n_gram_count_matrix:
+            tweet_n_gram_count_matrix[item]=0
+
+        X = self.vectorizer.fit_transform(tweet)
+        feature_names = self.vectorizer.get_feature_names()
+        for term in nltk.pos_tag(feature_names):
+            # Remove proper nouns
+            if term[1] == "NNP" or term[1] == "NNPS":
+                feature_names.remove(term[0])
+                # Remove BREXIT related terms TODO
+        #If n grams collected present in n grams for whole document too, return 1
+        for tweet_n_gram in feature_names:
+            if tweet_n_gram in self.n_gram_count_matrix.keys():
+                tweet_n_gram_count_matrix[tweet_n_gram] = 1
+        return tweet_n_gram_count_matrix
+
+    def createNGramCountMatrix(self,document):
+        '''
+        Creates a n-gram count matrix of all the tweets. N-grams that have no common nouns and occur more than 5 times
+        :param document:
+        :return: a count matrix
+        '''
+        X = self.vectorizer.fit_transform(document)
+        feature_names = self.vectorizer.get_feature_names()
+        for term in nltk.pos_tag(feature_names):
+            # Remove proper nouns
+            if term[1] == "NNP" or term[1] == "NNPS":
+                feature_names.remove(term[0])
+            # Remove BREXIT related terms TODO
+
+        matrix_terms = np.array(feature_names)
+
+        term_freqs = X.sum(axis=0).A1
+        self.n_gram_count_matrix = dict(zip(feature_names, term_freqs))
+
+        #with open(N_GRAM_COUNT_FILENAME,"w+") as out_file:
+            #writer = csv.writer(out_file, delimiter=',')
+        terms = []
+        freqs = []
+        for w in self.n_gram_count_matrix.copy():
+          #keep only those n-grams that have a frequency > 5
+            if(self.n_gram_count_matrix.get(w) >= 5):
+                terms.append(w)
+                freqs.append(self.n_gram_count_matrix.get(w))
+            else:
+                #remove n-grams which don't occur less than 5 times
+                self.n_gram_count_matrix.pop(w)
+            #writer.writerow(terms)
+            #writer.writerow(freqs)
+
+            #numpy.savetxt(N_GRAM_COUNT_FILENAME, self.n_gram_count_matrix[1], fmt="%d", delimiter=",")
+
+            return self.tweetFeatures()
+
+    def enrichTweets(self, tweet):
         """
         Features added to a row of data.
         :param row:
-        :param tokens:
+        :param tweet:
         :return: Returns a row with features added
         """
+        row=[]
+        #tokenize tweet
+        tokens = self.tokenize(tweet)
+
         # remove stop words
         tokens = self.removeStopWords(tokens)
         # add negative opinion feature
@@ -245,5 +332,10 @@ class TweetEnricher:
         sac_feature_dict = self.hasSpeechActVerbs(tokens)
         for verb in self.speech_act_verbs:
               row.append(sac_feature_dict.get(verb))
+
+        # n grams from tweet
+        tweet_n_gram_count_matrix = self.collectNGramFeatures(tweet)
+        for n_gram in self.n_gram_count_matrix:
+            row.append(tweet_n_gram_count_matrix[n_gram])
 
         return row
