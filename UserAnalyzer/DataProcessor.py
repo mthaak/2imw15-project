@@ -8,6 +8,8 @@ class DataProcessor:
     CL_NR_OPINION_LABEL = 12
     CL_NR_USER_ID = 1
     RATIO_OPINION = 1.4
+    test = 0
+
     def __init__(self, tweets_filename):
         self.rumour_tweets = []
         self.features = []
