@@ -138,7 +138,7 @@ def get_all_tweets_of_user(screen_name, keywords=[]):
                   [hashtag['text'] for hashtag in tweet.entities['hashtags']],
                   [url['expanded_url'] for url in tweet.entities['urls']]] for tweet in alltweets]
 
-    with open('results/%s_tweets.csv' % screen_name, 'w', encoding='utf8') as f:
+    with open('results/%s_tweets.csv' % screen_name, 'w', newline='', encoding='utf8') as f:
         writer = csv.writer(f, delimiter="\t")
         writer.writerow(["tweet_id", "text", "created_at", "retweet_count",
                          "user_id", "screen_name", "#followers", "#followings",
@@ -180,7 +180,7 @@ def get_friends_of_user(screen_name):
                    user.friends_count,
                    user.statuses_count] for user in users]
 
-    with open('results/%s_friends.csv' % screen_name, 'w', encoding='utf8') as f:
+    with open('results/%s_friends.csv' % screen_name, 'w', newline='', encoding='utf8') as f:
         writer = csv.writer(f, delimiter="\t")
         writer.writerow(["user_screen_name", "friend_id", "friend_screen_name",
                          "friends_#followers", "friends_#followings", "friends_#statuses"])
@@ -206,7 +206,7 @@ if __name__ == "__main__":
     users = get_users()
 
     # Get tweets
-    # get_all_tweets_of_users(list_of_users, keywords=["people", "twitter"])
+    get_all_tweets_of_users(users, keywords=["people", "twitter"])
 
     # Get friends
     get_friends_of_users(users)
