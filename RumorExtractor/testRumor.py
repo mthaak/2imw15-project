@@ -6,7 +6,7 @@ import nltk
 nltk.download('punkt')
 import numpy as np
 
-# Import csv file TODO: still needs to import actual csv instead of these tests
+# Import csv file TODO: still needs to import actual csv instead of these tests yolo
 re = RumorExtractor()
 tweet1 = tb("#zikavirus	itsleandraa	3362867932	RT @ClassicPict: Mosquitoes kill more annually than Sharks. #ZikaV")
 tweet2 = tb("#zikavirus	chatVsheil	436607416	@kanikahanda Pakaging matters however good or bad the product is & star " +
