@@ -81,8 +81,21 @@ auths = None
 ################################################
 
 
-def list_tweets(cursor, resource, path):
-    """ Iterate over the tweets with a cursor """
+def set_users(list_of_users):
+    """ Add give users to pickle file """
+    assert isinstance(list_of_users, list) and (all(isinstance(elem, str) for elem in list_of_users))
+    users = list_of_users
+    pickle.dump(users, open("users.p", "wb"))
+
+
+def get_users():
+    """ Get list of users """
+    users = pickle.load(open("users.p", "rb"))
+    return users
+
+
+def cursor_iterator(cursor, resource, path):
+    """ Iterator for tweepy cursors """
     while True:
         try:
             yield cursor.next()
@@ -106,7 +119,7 @@ def get_all_tweets_of_user(screen_name, keywords=[]):
     # initialize a list to hold all the tweets
     alltweets = []
 
-    for page in list_tweets(
+    for page in cursor_iterator(
             tweepy.Cursor(api.user_timeline, screen_name=screen_name, count=200).pages(), resource, path):
         alltweets.extend(page)
         print("...%s tweets downloaded so far" % len(alltweets))
@@ -141,23 +154,47 @@ def get_all_tweets_of_users(list_of_users, keywords=[]):
         get_all_tweets_of_user(user, keywords)
 
 
-def get_tweets_of_users_in_file(keywords=[]):
+def get_friends_of_user(screen_name):
+    """ Get all friends of the given user
+    :param screen_name: Twitter screen name of the given user
+    :return: List of all friends of given user
     """
-    Loads a list of users from users.p
-    pickle file and get their tweets
-    """
-    # Get list of users
-    users = pickle.load(open("users.p", "rb"))
+    assert isinstance(screen_name, str)
 
-    # Get their tweets
-    get_all_tweets_of_users(users, keywords)
+    # Resource from which we want to collect tweets
+    resource, path = 'friends', '/friends/list'
+
+    # initialize a list to hold all the friends screen names
+    users = []
+
+    for page in cursor_iterator(
+            tweepy.Cursor(api.friends, screen_name=screen_name, count=200).pages(), resource, path):
+        users.extend(page)
+        print('...%s friends found so far' % len(users))
+
+    # transform the tweepy friends into a 2D array that will populate the csv
+    outfriends = [[screen_name,
+                   user.id_str,
+                   user.screen_name,
+                   user.followers_count,
+                   user.friends_count,
+                   user.statuses_count] for user in users]
+
+    with open('results/%s_friends.csv' % screen_name, 'w', encoding='utf8') as f:
+        writer = csv.writer(f, delimiter="\t")
+        writer.writerow(["user_screen_name", "friend_id", "friend_screen_name",
+                         "friends_#followers", "friends_#followings", "friends_#statuses"])
+        writer.writerows(outfriends)
+
+    return [user.screen_name for user in users]
 
 
-def set_users(list_of_users):
-    """ Add give users to pickle file """
+def get_friends_of_users(list_of_users):
+    """ Get the tweets all given users in list """
     assert isinstance(list_of_users, list) and all(isinstance(elem, str) for elem in list_of_users)
-    users = list_of_users
-    pickle.dump(users, open("users.p", "wb"))
+    for user in list_of_users:
+        print('Getting friends of %s' % user)
+        get_friends_of_user(user)
 
 
 if __name__ == "__main__":
@@ -165,5 +202,11 @@ if __name__ == "__main__":
     set_users(list_of_users=['vote_leave', 'BorisJohnson', 'David_Cameron',
                              'Nigel_Farage', 'michaelgove', 'George_Osborne'])
 
+    # Load users
+    users = get_users()
+
     # Get tweets
-    get_tweets_of_users_in_file(keywords=["people", "twitter"])
+    # get_all_tweets_of_users(list_of_users, keywords=["people", "twitter"])
+
+    # Get friends
+    get_friends_of_users(users)
