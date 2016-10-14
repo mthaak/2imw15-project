@@ -3,6 +3,7 @@ import time
 import csv
 import pickle
 import re
+import os
 
 ################################################
 # INSTANTIATE API
@@ -126,7 +127,7 @@ def get_all_tweets_of_user(screen_name, keywords=[]):
 
     # transform the tweepy tweets into a 2D array that will populate the csv
     outtweets = [[tweet.id_str,
-                  tweet.text,
+                  tweet.text.replace('\n', ' ').replace('\r', ''),
                   tweet.created_at,
                   tweet.retweet_count,
                   tweet.author.id,
@@ -138,7 +139,7 @@ def get_all_tweets_of_user(screen_name, keywords=[]):
                   [hashtag['text'] for hashtag in tweet.entities['hashtags']],
                   [url['expanded_url'] for url in tweet.entities['urls']]] for tweet in alltweets]
 
-    with open('results/%s_tweets.csv' % screen_name, 'w', newline='', encoding='utf8') as f:
+    with open(os.path.join('results', '%s_tweets.csv' % screen_name), 'w', newline='', encoding='utf8') as f:
         writer = csv.writer(f, delimiter="\t")
         writer.writerow(["tweet_id", "text", "created_at", "retweet_count",
                          "user_id", "screen_name", "#followers", "#followings",
@@ -178,12 +179,14 @@ def get_friends_of_user(screen_name):
                    user.screen_name,
                    user.followers_count,
                    user.friends_count,
+                   user.listed_count,
                    user.statuses_count] for user in users]
 
-    with open('results/%s_friends.csv' % screen_name, 'w', newline='', encoding='utf8') as f:
+    with open(os.path.join('results', '%s_friends.csv' % screen_name), 'w', newline='', encoding='utf8') as f:
         writer = csv.writer(f, delimiter="\t")
         writer.writerow(["user_screen_name", "friend_id", "friend_screen_name",
-                         "friends_#followers", "friends_#followings", "friends_#statuses"])
+                         "friends_#followers", "friends_#followings", "friends_#listed",
+                         "friends_#statuses"])
         writer.writerows(outfriends)
 
     return [user.screen_name for user in users]
@@ -209,4 +212,4 @@ if __name__ == "__main__":
     get_all_tweets_of_users(users, keywords=["people", "twitter"])
 
     # Get friends
-    get_friends_of_users(users)
+    # get_friends_of_users(users)
