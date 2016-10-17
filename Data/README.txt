@@ -1,7 +1,17 @@
-File enrichedTweets.csv
-This file uses "tab" as columns separator.
-This file is organized as follows (refer to the columns of the dataset as A, B, C, etc...):
-A	|B	 |C	|D	  |E	  |F		    |G		 |H		|I	    |J	 |K	|L		|M		|N		|O	  |P		|Q	    |R		  |S		 |T|U	      |V|W	  |X |Y		 |Z
-keyword	|UserName|UserID|TweetText|TweetID|DateOfPublication|#ofFollowers|#ofFollowings	|#ofStatuses|URLs|Label	|NegativeOpnions|PositiveOpnions|VulgarWords	|Emoticons|Interrogative|Exclamatory|Abbreviations|TwitterJargons|#|# position|@|@position|RT|RT position|URL presence
+File Collection_N_Gram_Matrix
+uni, bi and tri grams for the whole collection. Only those that occur more than 5 times are included. Stop words, Proper nouns and brexit keywords removed.
 
+File Features_basic
+Order of features:
+
+VulgarWords	|Emoticons|Interrogative|Exclamatory|Abbreviations|TwitterJargons|#|# position|@|@position|RT|RT position|URL presence
 The order in which speech act verbs' features occur is as per file "/Lists/StemmedSpeechActVerbs".
+NegativeOpnions|PositiveOpnions|
+
+File Features
+Order of features:
+
+VulgarWords	|Emoticons|Interrogative|Exclamatory|Abbreviations|TwitterJargons|#|# position|@|@position|RT|RT position|URL presence
+The order in which speech act verbs' features occur is as per file "/Lists/StemmedSpeechActVerbs".
+NegativeOpnions-count|PositiveOpnions-count|
+N-gram features
