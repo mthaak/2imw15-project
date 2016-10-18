@@ -15,7 +15,7 @@ class RumorExtractor:
         print("Initialize");
 
     def tf(self, term, doc):
-        """
+        """ TODO: adjust formula to wiki
         Method that computes the Term Frequency.
         :param  term: the term or word.
         :param  doc: The document or tweet containing text.
@@ -53,7 +53,7 @@ class RumorExtractor:
 
     def computeSimilarity(self, vector1, vector2):
         """
-        Method that computes the similarity between clusters.
+        Method that computes the similarity between two vectors.
         :param vector1: The first vector to compute the similarity.
         :param vector2: The second vector to compute the similarity.
         :return the dot-product of these vectors divided by the product of the magnitude of these vectors.
@@ -70,8 +70,9 @@ class RumorExtractor:
         :param cluster2: The second cluster to merge.
         :return the new set of clusters.
         """
-        merge = tb(cluster1.string + cluster2.string)
-        clusters.remove(cluster1)
-        clusters.remove(cluster2)
-        clusters.append(merge)
+        if(cluster1 != cluster2):
+            merge = tb(cluster1.string + cluster2.string)
+            clusters.remove(cluster1)
+            clusters.remove(cluster2)
+            clusters.append(merge)
         return clusters
