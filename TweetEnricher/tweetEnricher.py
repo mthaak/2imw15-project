@@ -352,7 +352,13 @@ class TweetEnricher:
         basic_row.append(pos_presence)
         basic_row.append(neg_presence)
 
-        # n grams from tweet
-        row.append(self.collectNGramFeatures(tweet))
+        #binary features with n grams
+        binary_ngrams_row = basic_row
 
-        return row, basic_row
+        # n grams from tweet
+        n_gram_feature_dict = self.collectNGramFeatures(tweet)
+        for w in n_gram_feature_dict:
+            row.append(n_gram_feature_dict.get(w))
+            binary_ngrams_row.append(n_gram_feature_dict.get(w))
+
+        return row, basic_row, binary_ngrams_row
