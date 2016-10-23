@@ -115,7 +115,7 @@ for i in range(n_clusters):
 # Output the set of clusters
 #for i in range(n_clusters):
 #    print([clusters[i], centers[i]])
-
+# TODO: output array of indexes of tweets that belong to each cluster
 with open(WRITE_FILENAME, 'w', encoding='utf-8', newline='') as csv_file:
     writer = csv.writer(csv_file, delimiter='\t')
     for i in range(n_clusters):
