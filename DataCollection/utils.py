@@ -16,7 +16,7 @@ def filter_by_keywords(df, list_of_keywords):
     combinations of inputted keywords
     """
     assert isinstance(list_of_keywords, list) and all(isinstance(k, str) for k in list_of_keywords)
-    return df[df.keywords.apply(ast.literal_eval).apply(lambda x: all(k in x for k in list_of_keywords))]
+    return df[df.keywords.apply(ast.literal_eval).apply(lambda x: any(k in x for k in list_of_keywords))]
 
 if __name__ == "__main__":
     users = ['vote_leave', 'BorisJohnson', 'David_Cameron',

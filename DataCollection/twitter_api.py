@@ -103,6 +103,8 @@ def cursor_iterator(cursor, resource, path):
         except tweepy.RateLimitError as e:
             print(e.reason)
             handle_rate_limit(resource, path)
+        except Exception:
+            raise StopIteration
 
 
 def check_keyword(s, key):
@@ -110,9 +112,10 @@ def check_keyword(s, key):
     return bool(re.search(key, s, re.IGNORECASE))
 
 
-def get_all_tweets_of_user(screen_name, keywords=[]):
+def get_all_tweets_of_user(screen_name, keywords=set()):
     """ Get all (max 3240 recent) tweets of given screen name """
     assert isinstance(screen_name, str)
+    assert isinstance(keywords, set) and all(isinstance(k, str) for k in keywords)
 
     # Resource from which we want to collect tweets
     resource, path = 'statuses', '/statuses/user_timeline'
@@ -147,7 +150,7 @@ def get_all_tweets_of_user(screen_name, keywords=[]):
         writer.writerows(outtweets)
 
 
-def get_all_tweets_of_users(list_of_users, keywords=[]):
+def get_all_tweets_of_users(list_of_users, keywords=set()):
     """ Get the tweets all given users in list """
     assert isinstance(list_of_users, list) and all(isinstance(elem, str) for elem in list_of_users)
     for user in list_of_users:
@@ -200,16 +203,81 @@ def get_friends_of_users(list_of_users):
         get_friends_of_user(user)
 
 
+def check_query(s):
+    """ Checks for common search API query keywords """
+    return (check_keyword(s, 'from:')
+            or check_keyword(s, 'to:')
+            or check_keyword(s, 'list:')
+            or check_keyword(s, 'filter:')
+            or check_keyword(s, 'url:')
+            or check_keyword(s, 'since:')
+            or check_keyword(s, 'until:')
+            or s == 'OR' or s == '"'
+            or s == '#' or s == '?'
+            or s == ':)' or s == ':('
+            or s[0] == '-' or s[0] == '@' or s[0] == '#')
+
+
+def search_tweets(query, output_filename):
+    assert isinstance(query, str) and isinstance(output_filename, str)
+
+    # Get all the relevant keywords from the query
+    import shlex
+    keywords = set(s.replace('(', '').replace(')', '') for s in shlex.split(query) if not check_query(s))
+    print('keywords: ', keywords)
+
+    from datetime import datetime
+    time = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+    # Resource from which we want to collect tweets
+    resource, path = 'search', '/search/tweets'
+
+    # initialize a list to hold all the tweets
+    alltweets = []
+
+    for page in cursor_iterator(
+            tweepy.Cursor(api.search, q=query, count=200).pages(), resource, path):
+        alltweets.extend(page)
+        print("...%s tweets downloaded so far" % len(alltweets))
+        if len(alltweets) > 3000:
+            break
+
+    # transform the tweepy tweets into a 2D array that will populate the csv
+    outtweets = [[tweet.id_str,
+                  tweet.text.replace('\n', ' ').replace('\r', ''),
+                  tweet.created_at,
+                  tweet.retweet_count,
+                  tweet.author.id,
+                  tweet.author.name,
+                  tweet.author.followers_count,
+                  tweet.author.friends_count,
+                  tweet.author.statuses_count,
+                  [k for k in keywords if check_keyword(tweet.text, k)],
+                  [hashtag['text'] for hashtag in tweet.entities['hashtags']],
+                  [url['expanded_url'] for url in tweet.entities['urls']]] for tweet in alltweets]
+
+    with open(os.path.join('results', '%s_%s_tweets.csv' % (output_filename, time)),
+              mode='w', newline='', encoding='utf8') as f:
+        writer = csv.writer(f, delimiter="\t")
+        writer.writerow(["tweet_id", "text", "created_at", "retweet_count",
+                         "user_id", "screen_name", "#followers", "#followings",
+                         "#statuses", "keywords", "hashtags", "urls"])
+        writer.writerows(outtweets)
+
 if __name__ == "__main__":
     # Set users from whom to get tweets
-    set_users(list_of_users=['vote_leave', 'BorisJohnson', 'David_Cameron',
-                             'Nigel_Farage', 'michaelgove', 'George_Osborne'])
+    # set_users(list_of_users=['vote_leave', 'BorisJohnson', 'David_Cameron',
+    #                          'Nigel_Farage', 'michaelgove', 'George_Osborne'])
 
     # Load users
-    users = get_users()
+    # users = get_users()
 
     # Get tweets
-    get_all_tweets_of_users(users, keywords=["people", "twitter"])
+    # get_all_tweets_of_users(users, keywords=["people", "twitter"])
 
     # Get friends
     # get_friends_of_users(users)
+
+    # Search tweets on keywords
+    query = '(britain eu) OR referendum OR brexit OR #voteleave OR #votestay'
+    search_tweets(query, 'search')
