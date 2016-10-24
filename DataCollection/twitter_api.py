@@ -103,7 +103,8 @@ def cursor_iterator(cursor, resource, path):
         except tweepy.RateLimitError as e:
             print(e.reason)
             handle_rate_limit(resource, path)
-        except Exception:
+        except Exception as e:
+            print(e)
             raise StopIteration
 
 
@@ -124,7 +125,8 @@ def get_all_tweets_of_user(screen_name, keywords=set()):
     alltweets = []
 
     for page in cursor_iterator(
-            tweepy.Cursor(api.user_timeline, screen_name=screen_name, count=200).pages(), resource, path):
+            tweepy.Cursor(api.user_timeline, screen_name=screen_name,
+                          count=200, include_rts=True).pages(), resource, path):
         alltweets.extend(page)
         print("...%s tweets downloaded so far" % len(alltweets))
 
@@ -218,12 +220,14 @@ def check_query(s):
             or s[0] == '-' or s[0] == '@' or s[0] == '#')
 
 
-def search_tweets(query, output_filename):
-    assert isinstance(query, str) and isinstance(output_filename, str)
+def search_tweets(qry, since_id=None, max_id=None):
+    assert isinstance(qry, str)
+    assert (max_id is None or isinstance(max_id, int))
+    assert (since_id is None or isinstance(since_id, int))
 
     # Get all the relevant keywords from the query
     import shlex
-    keywords = set(s.replace('(', '').replace(')', '') for s in shlex.split(query) if not check_query(s))
+    keywords = set(s.replace('(', '').replace(')', '') for s in shlex.split(qry) if not check_query(s))
     print('keywords: ', keywords)
 
     from datetime import datetime
@@ -236,11 +240,12 @@ def search_tweets(query, output_filename):
     alltweets = []
 
     for page in cursor_iterator(
-            tweepy.Cursor(api.search, q=query, count=200).pages(), resource, path):
+            tweepy.Cursor(api.search, q=qry, count=200, since_id=since_id,
+                          max_id=max_id).pages(), resource, path):
         alltweets.extend(page)
         print("...%s tweets downloaded so far" % len(alltweets))
-        if len(alltweets) > 3000:
-            break
+        # if len(alltweets) > 3000:
+        #     break
 
     # transform the tweepy tweets into a 2D array that will populate the csv
     outtweets = [[tweet.id_str,
@@ -256,7 +261,7 @@ def search_tweets(query, output_filename):
                   [hashtag['text'] for hashtag in tweet.entities['hashtags']],
                   [url['expanded_url'] for url in tweet.entities['urls']]] for tweet in alltweets]
 
-    with open(os.path.join('results', '%s_%s_tweets.csv' % (output_filename, time)),
+    with open(os.path.join('results', 'search_%s_tweets.csv' % time),
               mode='w', newline='', encoding='utf8') as f:
         writer = csv.writer(f, delimiter="\t")
         writer.writerow(["tweet_id", "text", "created_at", "retweet_count",
@@ -279,5 +284,7 @@ if __name__ == "__main__":
     # get_friends_of_users(users)
 
     # Search tweets on keywords
+    # since_id = most recent tweet id
+    # max_id = oldest retrieved tweet id - 1
     query = '(britain eu) OR referendum OR brexit OR #voteleave OR #votestay'
-    search_tweets(query, 'search')
+    search_tweets(query, since_id=790324301446676480)#, max_id=790314732670640127)
