@@ -7,10 +7,10 @@ import os
 # LOAD INPUT
 ################################################
 
-dataFile = open(os.path.join(os.pardir, 'DataCollection', 'results', 'search_20161024_004952_tweets.csv'),
-                'r',
-                encoding='utf-8')
-df = pd.read_csv(dataFile, sep="\t", index_col=None, header=0)
+from DataCollection.utils import read_csv
+
+df = read_csv(os.path.join(os.pardir, 'DataCollection', 'results', 'search_20161024_004952_tweets.csv'),
+              index_col='tweet_id')
 
 ################################################
 # EXTRACT FEATURES

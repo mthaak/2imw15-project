@@ -264,6 +264,7 @@ def search_tweets(qry, since_id=None, max_id=None):
     with open(os.path.join('results', 'search_%s_tweets.csv' % time),
               mode='w', newline='', encoding='utf8') as f:
         writer = csv.writer(f, delimiter="\t")
+        f.write('#query,' + qry + '\n')
         writer.writerow(["tweet_id", "text", "created_at", "retweet_count",
                          "user_id", "screen_name", "#followers", "#followings",
                          "#statuses", "keywords", "hashtags", "urls"])
@@ -286,6 +287,7 @@ if __name__ == "__main__":
     # Search tweets on keywords
     # since_id = most recent tweet id
     # max_id = oldest retrieved tweet id - 1
+    # (britain eu) OR ((uk OR britain OR ukip) referendum) OR brexit OR #voteleave OR #votestay OR #EUreferendum OR #StrongerIn OR #Euref OR #Remain OR #voteremain
     query = '(britain eu) ' \
             'OR ((uk OR britain OR ukip) referendum) ' \
             'OR brexit ' \
@@ -293,6 +295,7 @@ if __name__ == "__main__":
             'OR #votestay ' \
             'OR #EUreferendum ' \
             'OR #StrongerIn ' \
-            'OR #EUuref ' \
-            'OR #Remain'
+            'OR #Euref ' \
+            'OR #Remain ' \
+            'OR #voteremain'
     search_tweets(query, since_id=790324301446676480)#, max_id=790314732670640127)
