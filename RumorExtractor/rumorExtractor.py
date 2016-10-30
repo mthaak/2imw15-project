@@ -3,6 +3,7 @@ import math
 from textblob import TextBlob as tb
 import numpy as np
 
+
 class RumorExtractor:
     """
     Class that realises the Rumor Extractor component.
