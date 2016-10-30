@@ -286,5 +286,13 @@ if __name__ == "__main__":
     # Search tweets on keywords
     # since_id = most recent tweet id
     # max_id = oldest retrieved tweet id - 1
-    query = '(britain eu) OR referendum OR brexit OR #voteleave OR #votestay'
+    query = '(britain eu) ' \
+            'OR ((uk OR britain OR ukip) referendum) ' \
+            'OR brexit ' \
+            'OR #voteleave ' \
+            'OR #votestay ' \
+            'OR #EUreferendum ' \
+            'OR #StrongerIn ' \
+            'OR #EUuref ' \
+            'OR #Remain'
     search_tweets(query, since_id=790324301446676480)#, max_id=790314732670640127)

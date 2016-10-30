@@ -1,6 +1,4 @@
 from rumorExtractor import *
-import sklearn
-import math
 from textblob import TextBlob as tb
 import nltk
 
