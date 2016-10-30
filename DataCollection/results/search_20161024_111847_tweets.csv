@@ -1,3 +1,4 @@
+#query  (britain eu) OR referendum OR brexit OR #voteleave OR #votestay
 tweet_id	text	created_at	retweet_count	user_id	screen_name	#followers	#followings	#statuses	keywords	hashtags	urls
 790482569770991616	RT @Kevin_Maguire: Leave liars promised £350m a week for the NHS. Instead inflation's up, £ down &amp; jobs at risk. Brexit backlash just begin…	2016-10-24 09:18:25	20	783755903539548160	CitizenOfTheWorld	107	404	1602	['brexit']	[]	[]
 790482569024405504	RT @benphillips76: Brexit negotiations going well. https://t.co/CsNxYjmIk9	2016-10-24 09:18:25	716	200543096	CharlieH	281	949	9652	['brexit']	[]	[]

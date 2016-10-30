@@ -1,3 +1,4 @@
+#query  (britain eu) OR referendum OR brexit OR #voteleave OR #votestay
 tweet_id	text	created_at	retweet_count	user_id	screen_name	#followers	#followings	#statuses	keywords	hashtags	urls
 790324301446676480	RT @UKIPNFKN: Theresa May has been battered by Brexit storms and is out of her depth and sinking fast via @DailyMirror #Brexit https://t.co…	2016-10-23 22:49:31	12	110667601	nicholas dowling	98	201	2393	['brexit']	['Brexit']	[]
 790324287215251456	"RT @StopStopHillary: The Brits say ""Trump is Right"" about the Jiadists coming over with Immigrants. Brexit #immigrants #ISIS #immigration h…"	2016-10-23 22:49:28	224	2535449498	Suzanne Rose	588	849	1676	['brexit']	['immigrants', 'ISIS', 'immigration']	[]

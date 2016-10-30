@@ -1,6 +1,16 @@
 import pandas as pd
 import os
 import ast
+import csv
+
+
+def read_csv(file_path, index_col=None, comment_literal='#'):
+    with open(file_path, 'r', encoding='utf-8') as f:
+        r = csv.reader(f)
+        skip = [i for i, row in enumerate(r) if row[0].startswith(comment_literal)]
+        f.seek(0)
+        df = pd.read_csv(f, sep="\t", index_col=index_col, header=0, skiprows=skip, skip_blank_lines=True)
+    return df
 
 
 def merge_csvs(files):
@@ -19,15 +29,19 @@ def filter_by_keywords(df, list_of_keywords):
     return df[df.keywords.apply(ast.literal_eval).apply(lambda x: any(k in x for k in list_of_keywords))]
 
 if __name__ == "__main__":
-    users = ['vote_leave', 'BorisJohnson', 'David_Cameron',
-             'Nigel_Farage', 'michaelgove', 'George_Osborne']
-    list_of_files = [
-        open(os.path.join('results', '%s_tweets.csv' % user), 'r', encoding='utf-8') for user in users]
-    # merge_csvs(list_of_files)
+    # users = ['vote_leave', 'BorisJohnson', 'David_Cameron',
+    #          'Nigel_Farage', 'michaelgove', 'George_Osborne']
+    # list_of_files = [
+    #     open(os.path.join('results', '%s_tweets.csv' % user), 'r', encoding='utf-8') for user in users]
+    # # merge_csvs(list_of_files)
+    #
+    # # Test to parse list from csv fields
+    # df = pd.read_csv(list_of_files[0], sep="\t", index_col='tweet_id', header=0, skip_blank_lines=True)
+    # print(ast.literal_eval(df['urls'][0])[0])
+    #
+    # # Test keywords filter
+    # print(filter_by_keywords(df, ['people']))
 
-    # Test to parse list from csv fields
-    df = pd.read_csv(list_of_files[0], sep="\t", index_col=None, header=0)
-    print(ast.literal_eval(df['urls'][0])[0])
-
-    # Test keywords filter
-    print(filter_by_keywords(df, ['people']))
+    df = read_csv(os.path.join('results', 'search_20161024_004952_tweets.csv'), index_col='tweet_id')
+    print(list(df.columns.values))
+    print(df.loc[790319636050874368])
