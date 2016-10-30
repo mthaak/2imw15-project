@@ -1,7 +1,5 @@
-import sklearn
 import math
 from textblob import TextBlob as tb
-import numpy as np
 
 
 class RumorExtractor:
@@ -13,7 +11,7 @@ class RumorExtractor:
         """
         Method that initialises the Rumor Extractor component.
         """
-        print("Initialize");
+        print("Initialize")
 
     def tf(self, term, doc):
         """
