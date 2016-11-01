@@ -39,7 +39,7 @@ class TweetEnricher:
                                "RT", "RT position", "Link"]
         for w in self.speech_act_verbs:
             self.tweet_features.append(w)
-        self.tweet_features.append(["NegativeOpnions", "PositiveOpnions"])
+        self.tweet_features.append(["NegativeOpinions", "PositiveOpinions"])
         self.basic_features = self.tweet_features
         for w in self.n_gram_count_matrix:
             self.tweet_features.append(w)
@@ -59,7 +59,7 @@ class TweetEnricher:
         :param tokens:
         :return: tokens without stopwords
         """
-        tokens_without_stopwords = [w for w in tokens if not w in self.stopset]
+        tokens_without_stopwords = [w for w in tokens if w not in self.stopset]
         return tokens_without_stopwords
 
     def hasNegativeOpinions(self, tokens):
@@ -68,14 +68,16 @@ class TweetEnricher:
         :param tokens:
         :return: 1 if negative opinions present. 0 otherwise
         """
-        count = 0
-        negative = 0
-        for w in tokens:
-            if w in self.negative_opinions:
-                count = count + 1
-        if count > 0:
-            negative = 1
-        return count, negative
+        # count = 0
+        # negative = 0
+        # for w in tokens:
+        #     if w in self.negative_opinions:
+        #         count = count + 1
+        # if count > 0:
+        #     negative = 1
+        # return count, negative
+        neg_op = set(tokens).intersection(self.negative_opinions)
+        return len(neg_op), len(neg_op) > 0
 
     def hasPositiveOpinions(self, tokens):
         """
@@ -83,14 +85,16 @@ class TweetEnricher:
         :param tokens:
         :return: 1 if positive opinions present. 0 otherwise
         """
-        count = 0
-        positive = 0
-        for w in tokens:
-            if w in self.positive_opinions:
-                count = count + 1
-        if count > 0:
-            positive = 1
-        return count, positive
+        # count = 0
+        # positive = 0
+        # for w in tokens:
+        #     if w in self.positive_opinions:
+        #         count = count + 1
+        # if count > 0:
+        #     positive = 1
+        # return count, positive
+        pos_op = set(tokens).intersection(self.negative_opinions)
+        return len(pos_op), len(pos_op) > 0
 
     def hasVulgarWords(self, tokens):
         """
@@ -250,8 +254,8 @@ class TweetEnricher:
                 feature_names.remove(term[0])
 
         # Remove potential Brexit keywords
-        for i in self.brexit_keywords:
-            if i in feature_names:
+        for i in feature_names:
+            if i in self.brexit_keywords:
                 feature_names.remove(i)
 
         # If n grams collected present in n grams for whole document too, set 1 for that n gram in matrix row
@@ -286,8 +290,8 @@ class TweetEnricher:
                 feature_names.remove(term[0])
 
         # Remove potential Brexit keywords
-        for i in self.brexit_keywords:
-            if i in feature_names:
+        for i in feature_names:
+            if i in self.brexit_keywords:
                 feature_names.remove(i)
 
         term_freqs = X.sum(axis=0).A1
