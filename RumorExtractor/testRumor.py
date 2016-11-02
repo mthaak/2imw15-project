@@ -1,18 +1,19 @@
-from rumorExtractor import *
+from RumorExtractor.rumorExtractor import *
 from textblob import TextBlob as tb
 import nltk
-
-nltk.download('punkt')
 import numpy as np
 
-# Import csv file TODO: still needs to import actual csv instead of these tests yolo
+# Make sure punkt corpus is up-to-date!
+nltk.download('punkt')
+
+# Import csv file TODO: still needs to import actual csv instead of these tests
+tweets = []  # data of tweets
+tweets.append(tb("RT @ClassicPict: Mosquitoes kill more annually than Sharks. #ZikaV"))
+tweets.append(
+    tb("@kanikahanda Pakaging matters however good or bad the product is & star performer this time is #ZikaVirus"))
+
+# Initialize rumor extractor
 re = RumorExtractor()
-tweet1 = tb(
-    "#zikavirus	itsleandraa	3362867932	RT @ClassicPict: Mosquitoes kill more annually than Sharks. #ZikaV")
-tweet2 = tb(
-    "#zikavirus	chatVsheil	436607416	@kanikahanda Pakaging matters however good or bad the product is & star " +
-    "performer this time is #ZikaVirus")
-tweets = [tweet1, tweet2]  # data of tweets
 threshold = 0.001  # Keep track of a threshold
 max_val = 1.0  # keep track of the maximum value in the similarity matrix. Init 1.0
 n_tweets = len(tweets)
