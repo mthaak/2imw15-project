@@ -5,6 +5,8 @@ from nltk.corpus import opinion_lexicon
 import string
 from nltk.stem.porter import *
 from sklearn.feature_extraction.text import CountVectorizer
+import math
+import csv
 
 class TweetEnricher:
     """
@@ -22,10 +24,11 @@ class TweetEnricher:
         self.web_abbreviations = [line.rstrip('\n') for line in open('../Data/Lists/WebAcronymns')]
         self.emoticons_list = [line.rstrip('\n') for line in open('../Data/Lists/EmojiList')]
         self.speech_act_verbs = [line.rstrip('\n') for line in open('../Data/Lists/StemmedSpeechActVerbs')]
+        self.trusted_domains = [line.rstrip('\n') for line in open('../Data/Lists/TrustedDomains')]
         self.verb_tags = ['VB', 'VBD', 'VBG', 'VBN', 'VBP', 'VBZ']
         self.n_gram_count_matrix = {}
         self.vectorizer = CountVectorizer(ngram_range=(1, 3), tokenizer=self.tokenizer.tokenize,
-                                     stop_words=list(self.stopset) + self.web_abbreviations + list(string.punctuation))
+                                     stop_words=list(self.stopset) + self.web_abbreviations + list(string.punctuation)+["...","..",")","(","-->","->",">>","#","RT","@"])
         self.vectorizer_unigram = CountVectorizer(ngram_range=(1, 1), tokenizer=self.tokenizer.tokenize,
                                           stop_words=list(self.stopset) + self.web_abbreviations + list(string.punctuation))
 
@@ -35,7 +38,7 @@ class TweetEnricher:
                                "Exclamation", "Abbreviations", "TwitterJargons", "#", "# position", "@", "@ position", "RT", "RT position", "Link"]
         for w in self.speech_act_verbs:
             self.tweet_features.append(w)
-        self.tweet_features.append(["NegativeOpnions", "PositiveOpnions"])
+        self.tweet_features.append(["NegativeOpnions", "PositiveOpnions","NumbersPresent","Non-Ascii Characters","GoodLink"])
         self.basic_features = self.tweet_features
         for w in self.n_gram_count_matrix:
             self.tweet_features.append(w)
@@ -44,7 +47,6 @@ class TweetEnricher:
     def tokenize(self,tweet):
         """
         Tokens created using nltk tokenizer
-        :param tweet:
         :return: tokens from tweet
         """
         return self.tokenizer.tokenize(tweet)
@@ -52,7 +54,6 @@ class TweetEnricher:
     def removeStopWords(self,tokens):
         """
         Removes stop words from tokens
-        :param tokens:
         :return: tokens without stopwords
         """
         tokens_without_stopwords = [w for w in tokens if not w in self.stopset]
@@ -61,13 +62,12 @@ class TweetEnricher:
     def hasNegativeOpinions(self,tokens):
         """
         Checks if negative opinions from nltk corpus present
-        :param tokens:
         :return: 1 if negative opinions present. 0 otherwise
         """
         count = 0
         negative = 0
         for w in tokens:
-            if w in self.negative_opinions:
+            if w.lower() in [x.lower() for x in self.negative_opinions]:
                 count = count + 1
         if count > 0:
             negative = 1
@@ -76,13 +76,12 @@ class TweetEnricher:
     def hasPositiveOpinions(self,tokens):
         '''
         Checks if positive opnions present
-        :param tokens:
         :return: 1 if positive opinions present. 0 otherwise
         '''
         count = 0
         positive=0
         for w in tokens:
-            if w in self.positive_opinions:
+            if w.lower() in [x.lower() for x in self.positive_opinions]:
                 count = count + 1
         if count > 0:
             positive = 1
@@ -91,29 +90,26 @@ class TweetEnricher:
     def hasVulgarWords(self,tokens):
         '''
         Checks if vulgar words from online list present
-        :param tokens:
         :return: 1 if present
         '''
         for w in tokens:
-            if w in self.vulgar_words:
+            if w.lower() in [x.lower() for x in self.vulgar_words]:
                 return 1
         return 0
 
     def hasAbbreviations(self,tokens):
         '''
         Checks if abbreviations from online list present
-        :param tokens:
         :return: 1 if present
         '''
         for w in tokens:
-            if w in self.web_abbreviations:
+            if w.lower() in [x.lower() for x in self.web_abbreviations]:
                 return 1
         return 0
 
     def hasTwitterJargons(self,tokens):
         '''
         Checks if twitter specific abbreviations and jargons from online list present
-        :param tokens:
         :return: 1 if present
         '''
         for w in tokens:
@@ -124,7 +120,6 @@ class TweetEnricher:
     def hasEmoticons(self,tokens):
         '''
         Checks if abbreviations from online list present
-        :param tokens:
         :return: 1 if present
         '''
         for w in tokens:
@@ -135,7 +130,6 @@ class TweetEnricher:
     def isInterrogative(self,tokens):
         '''
         Checks if ? present
-        :param tokens:
         :return: 1 if present
         '''
         for term in tokens:
@@ -147,7 +141,6 @@ class TweetEnricher:
     def isExclamatory(self,tokens):
         '''
         Checks if ! present
-        :param tokens:
         :return: 1 if present
         '''
         for term in tokens:
@@ -159,7 +152,6 @@ class TweetEnricher:
     def hasHash(self,tokens):
         '''
         Checks if # present
-        :param tokens:
         :return: 1 if present, 0 otherwise; 1 if present in the beginning, 0 oherwise
         '''
         for index, term in enumerate(tokens):
@@ -173,7 +165,6 @@ class TweetEnricher:
     def hasRT(self,tokens):
         '''
         Checks if RT present
-        :param tokens:
         :return: 1 if present, 0 otherwise; 1 if present in the beginning, 0 oherwise
         '''
         for index, term in enumerate(tokens):
@@ -187,7 +178,6 @@ class TweetEnricher:
     def hasATag(self,tokens):
         '''
         Checks if @ present
-        :param tokens:
         :return: 1 if present, 0 otherwise; 1 if present in the beginning, 0 oherwise
         '''
         for index, term in enumerate(tokens):
@@ -201,7 +191,6 @@ class TweetEnricher:
     def hasALink(self,tokens):
         """
         Checks if the tweet has a url
-        :param tokens:
         :return: 1 if url present
         """
         for w in tokens:
@@ -209,10 +198,48 @@ class TweetEnricher:
                 return 1
         return 0
 
+    def hasManyNumbers(self,tokens):
+        """
+        Checks if the tweet many numbers
+        :return: 1 if more than 5 numbers present
+        """
+        count = 0
+        for w in tokens:
+            if re.match('[\d]+',w):
+               count = count + 1
+        if count > 2:
+            return 1
+        else:
+            return 0
+
+    def hasManyNonAscii(self, tokens):
+        """
+        Checks if the tweet has non-ascii characters
+        :return: 1 if more than 5 such present
+        """
+        count = 0
+        for token in tokens:
+            if re.match('[^\x00-\x7F]',token):
+                count = count + 1
+        if count > 5:
+            return 1
+        else:
+            return 0
+
+    def hasLinksToReputedDomains(self, url_string):
+        """
+        Checks if the tweet links to some trusted pages
+        :return: 1 if more any such link present
+        """
+        for i in self.trusted_domains:
+            pattern = re.compile(i+'.*')
+            if re.findall(pattern,url_string):
+                return 1
+        return 0
+
     def hasSpeechActVerbs(self,tokens):
         '''
         Returns 265 binary features for the speech act verbs
-        :param tokens:
         :return: a dictionary
         '''
         speech_act_feature_dict = {}        # dict stores the 265 features
@@ -229,7 +256,6 @@ class TweetEnricher:
     def collectNGramFeatures(self,tweet):
         '''
         Collects the n-grams present in tweet that also occur through out the document more than 5 times
-        :param tweet:
         :return: a count matrix
         '''
 
@@ -256,49 +282,130 @@ class TweetEnricher:
                 tweet_n_gram_count_dict[n_gram] = 1
         return tweet_n_gram_count_dict
 
-    def returnUnigramMatrix(self,document):
+    def returnUnigramMatrix(self,collection):
         '''
         Reurns unigrams in document- done to fetch Brexit related keywords
         '''
-        X = self.vectorizer_unigram.fit_transform(document)
+        X = self.vectorizer_unigram.fit_transform(collection)
         feature_names = self.vectorizer_unigram.get_feature_names()
         term_freqs = X.sum(axis=0).A1
         unigram_count_matrix = dict(zip(feature_names, term_freqs))
 
         return unigram_count_matrix
 
-    def createNGramCountMatrix(self,document):
+    def createNGramCountMatrix(self,collection,SA_tagged_collection):
         '''
         Creates a n-gram count matrix of all the tweets. N-grams that have no common nouns and occur more than 5 times
-        :param document:
         :return: a count matrix
         '''
-        X = self.vectorizer.fit_transform(document)
+        X = self.vectorizer.fit_transform(collection)
         feature_names = self.vectorizer.get_feature_names()
-        for term in nltk.pos_tag(feature_names):
-            # Remove proper nouns
-            if term[1] == "NNP" or term[1] == "NNPS":
-                feature_names.remove(term[0])
+        print("Size of n grams =  %d " % len(feature_names))
 
-        # Remove potential Brexit keywords
-        for i in self.brexit_keywords:
-            if i in feature_names:
-                feature_names.remove(i)
+        # Remove n-grams with #,@,RT, only numbers
+        # for i in feature_names:
+        #     if re.findall('#.*', i):
+        #         feature_names.remove(i)
+        #     elif re.findall('[\d]+', i):
+        #         feature_names.remove(i)
+        #     elif re.findall('@.*', i):
+        #         feature_names.remove(i)
+        #     elif re.findall('RT.*', i):
+        #         feature_names.remove(i)
+        #     elif re.findall('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+',i):
+        #         feature_names.remove(i)
+        #
+        # # Remove potential Brexit keywords
+        # for i in feature_names:
+        #     for j in i.split():
+        #         if j in self.brexit_keywords:
+        #             feature_names.remove(i)
+        #             break
+        #
+        #
+        # for term in nltk.pos_tag(feature_names):
+        #     # Remove proper nouns
+        #     if term[1] == "NNP" or term[1] == "NNPS" or term[1] == "NN":
+        #         feature_names.remove(term[0])
+
+
+
+        # #Find entropy of each n-gram
+        # entropy = {}
+        # for item in feature_names:
+        #     entropy[item] = 0
+        # total = len(SA_tagged_collection)
+        # occurrences = {}
+        # tagged_tweets= {}
+        # for gram in SA_tagged_collection:
+        #     if SA_tagged_collection.get(gram)[1] != '':
+        #         tagged_tweets[gram] = SA_tagged_collection.get(gram)
+        #
+        # for item in feature_names:
+        #     p = re.compile(re.escape(item))
+        #     for gram in tagged_tweets:
+        #         occurrences[tagged_tweets.get(gram)[1]] = 0
+        #     for gram in tagged_tweets:
+        #         times_in_tweet = len(re.findall(p, str(tagged_tweets.get(gram)[0])))
+        #         occurrences[tagged_tweets.get(gram)[1]] += times_in_tweet
+        #     for gram in tagged_tweets:
+        #         entropy[item] += -(occurrences[tagged_tweets.get(gram)[1]]/total)*math.log((occurrences[tagged_tweets.get(gram)[1]]+1)/total)
+        #
+        # # n-gram entropies
+        # with open('../Data/test/entropy_raw.csv', 'w+', newline='', encoding='utf8') as out_file:
+        #     writer = csv.writer(out_file)
+        #     for w in sorted(entropy, key=entropy.get):
+        #         writer.writerow([w, entropy.get(w)])
+
+        # USING good n-grams generated before by current commented sections entropy threshold 0.2
+        features = [line.rstrip('\n') for line in open('../Data/Lists/n_grams_final.csv')]
 
         term_freqs = X.sum(axis=0).A1
-        self.n_gram_count_matrix = dict(zip(feature_names, term_freqs))
+        self.n_gram_count_matrix = dict(zip(features, term_freqs))
 
         for w in self.n_gram_count_matrix.copy():
           #keep only those n-grams that have a frequency > 5
             if(self.n_gram_count_matrix.get(w) < 5):
                 self.n_gram_count_matrix.pop(w)
+
+        # # Normalize by dividing by log of number of occurences on n-gram in collection
+        # for gram in entropy.copy():
+        #     if gram in self.n_gram_count_matrix.keys():
+        #         entropy[gram] = entropy[gram]/(math.log(self.n_gram_count_matrix.get(gram)))
+        #     else:
+        #         entropy.pop(gram)
+        #
+        # print("Reduced Size of n grams = %d " % len(entropy))
+        #
+        # # n-gram entropies
+        # with open('../Data/test/entropy.csv', 'w+', newline='', encoding='utf8') as out_file:
+        #     writer = csv.writer(out_file)
+        #     for w in sorted(entropy, key=entropy.get):
+        #         writer.writerow([w, entropy.get(w)])
+
         return self.tweetFeatures()
 
-    def enrichTweets(self, tweet):
+    def speechActTagTweet(self,tweet):
+        tokens = self.tokenize(tweet)
+        pos_list = nltk.pos_tag(tokens)
+        tag = ''
+        for entry in pos_list:
+            if entry[1] in self.verb_tags:  # check if the tokens that are verbs are speech act verbs
+                verb = self.stemmer.stem(entry[0].lower())
+                if verb in self.speech_act_verbs:
+                    tag = verb
+                    break
+        return tag
+
+    def speechActTagCollection(self, collection):
+        self.speech_act_tags = {}
+        for tweet in collection:
+            self.speech_act_tags[tweet] = (collection.get(tweet), self.speechActTagTweet(collection.get(tweet)))
+        return self.speech_act_tags
+
+    def enrichTweets(self, tweet, urls):
         """
         Features added to a row of data.
-        :param row:
-        :param tweet:
         :return: Returns a row with features added
         """
         row=[]
@@ -337,6 +444,15 @@ class TweetEnricher:
         sac_feature_dict = self.hasSpeechActVerbs(tokens)
         for verb in self.speech_act_verbs:
               row.append(sac_feature_dict.get(verb))
+
+        #more than 5 numbers in tweet
+        row.append(self.hasManyNumbers(tokens))
+
+        #presence of non-ascii characters
+        row.append(self.hasManyNonAscii(tokens))
+
+        #presence of links to trusted domains
+        row.append(self.hasLinksToReputedDomains(urls))
 
         basic_row = row
 
