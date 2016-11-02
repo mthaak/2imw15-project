@@ -4,12 +4,12 @@ import ast
 import csv
 
 
-def read_csv(file_path, index_col=None, comment_literal='#'):
+def read_csv_ignore_comments(file_path, sep="\t", index_col=None, comment_literal='#'):
     with open(file_path, 'r', encoding='utf-8') as f:
         r = csv.reader(f)
         skip = [i for i, row in enumerate(r) if row[0].startswith(comment_literal)]
         f.seek(0)
-        df = pd.read_csv(f, sep="\t", index_col=index_col, header=0, skiprows=skip, skip_blank_lines=True)
+        df = pd.read_csv(f, sep=sep, index_col=index_col, header=0, skiprows=skip, skip_blank_lines=True)
     return df
 
 
@@ -36,12 +36,12 @@ if __name__ == "__main__":
     # # merge_csvs(list_of_files)
     #
     # # Test to parse list from csv fields
-    # df = pd.read_csv(list_of_files[0], sep="\t", index_col='tweet_id', header=0, skip_blank_lines=True)
+    # df = read_csv_ignore_comments(list_of_files[0], index_col='tweet_id')
     # print(ast.literal_eval(df['urls'][0])[0])
     #
     # # Test keywords filter
     # print(filter_by_keywords(df, ['people']))
 
-    df = read_csv(os.path.join('results', 'search_20161024_004952_tweets.csv'), index_col='tweet_id')
+    df = read_csv_ignore_comments(os.path.join('results', 'search_20161024_004952_tweets.csv'), index_col='tweet_id')
     print(list(df.columns.values))
     print(df.loc[790319636050874368])
