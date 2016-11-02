@@ -13,8 +13,8 @@ class RumorExtractor:
         print("Initialize")
 
     def tf(self, term, doc):
-        """ TODO: adjust formula to wiki
-        Method that computes the Term Frequency.
+        """
+        Method that computes the raw Term Frequency.
         :param  term: the term or word.
         :param  doc: The document or tweet containing text.
         :return the number of times that a term occurs in document.
@@ -28,7 +28,7 @@ class RumorExtractor:
         :param  doclist: The collection of documents or tweets.
         :return the number of documents containing a specific term.
         """
-        return (float)(sum(1 for blob in doclist if term in blob.words))
+        return (float)(sum(1 for blob in doclist if term in blob[0].words))
 
     def idf(self, term, doclist):
         """
@@ -69,7 +69,9 @@ class RumorExtractor:
         :return the new set of clusters.
         """
         if(cluster1 != cluster2):
-            merge = tb(cluster1.string + cluster2.string)
+            merge_string = tb(cluster1[0].string + cluster2[0].string)
+            merge_index = [cluster1[1], cluster2[1]]
+            merge = [merge_string, merge_index]
             clusters.remove(cluster1)
             clusters.remove(cluster2)
             clusters.append(merge)
