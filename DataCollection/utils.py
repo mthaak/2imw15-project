@@ -2,6 +2,8 @@ import pandas as pd
 import os
 import ast
 import csv
+from calendar import monthrange
+from datetime import timedelta
 
 
 def read_csv_ignore_comments(file_path, sep="\t", index_col=None, comment_literal='#'):
@@ -18,6 +20,24 @@ def merge_csvs(files):
     assert isinstance(files, list) and all(hasattr(f, 'read') for f in files)
     df = pd.concat((pd.read_csv(f, sep='\t', index_col=None, header=0) for f in files))
     df.to_csv(os.path.join('results', 'out.csv'), index=False, sep='\t', encoding='utf-8')
+
+
+def month_delta(from_date, to_date):
+    """
+    Calculate the number of months from from_date to to_date.
+    :param from_date:
+    :param to_date:
+    :return:
+    """
+    delta = 0
+    while True:
+        mdays = monthrange(from_date.year, from_date.month)[1]
+        from_date += timedelta(days=mdays)
+        if from_date <= to_date:
+            delta += 1
+        else:
+            break
+    return delta
 
 
 def filter_by_keywords(df, list_of_keywords):
@@ -42,6 +62,7 @@ if __name__ == "__main__":
     # # Test keywords filter
     # print(filter_by_keywords(df, ['people']))
 
-    df = read_csv_ignore_comments(os.path.join('results', 'search_20161024_004952_tweets.csv'), index_col='tweet_id')
-    print(list(df.columns.values))
-    print(df.loc[790319636050874368])
+    df = read_csv_ignore_comments(os.path.join('results', 'search_20161102_211623_tweets.csv'), index_col='tweet_id')
+    # df['is_reply'] = df['is_reply'].apply(lambda x: 1 if x else 0)
+    # df['reply_to_id'] = df.apply(lambda x: -1 if x['is_reply'] == 0 else x['reply_to_id'], axis=1).astype('int64')
+    # df.to_csv(os.path.join('results', 'search_20161102_132334_tweets.csv'), sep='\t', encoding='utf-8')

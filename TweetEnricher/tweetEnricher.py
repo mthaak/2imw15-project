@@ -505,12 +505,12 @@ class TweetEnricher:
         tokens = [w for w in tokens if not w in set(stopwords.words('english') + self.web_abbreviations + list(string.punctuation))]
 
         positive_count, is_positive = self.hasPositiveOpinions(tokens)
-        negative_count, is_nagative = self.hasNegativeOpinions(tokens)
+        negative_count, is_negative = self.hasNegativeOpinions(tokens)
 
         positive_count += self.hasPositiveEmoticons(tokens)
         negative_count += self.hasNegativeEmoticons(tokens)
 
-        positive_percentage = positive_count / len(text) * 100
-        negative_percentage = negative_count / len(text) * 100
+        positive_percentage = positive_count / len(tokens)
+        negative_percentage = negative_count / len(tokens)
 
-        return positive_percentage,negative_percentage
+        return positive_percentage, negative_percentage

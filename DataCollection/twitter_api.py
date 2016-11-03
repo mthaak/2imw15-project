@@ -22,6 +22,7 @@ def switch_auth(idx):
 def handle_rate_limit(resource, path):
     """ Switch authentication from the current one which is depleted """
     assert isinstance(resource, str) and isinstance(path, str)
+    print('\t--> Handling Rate Limit')
 
     # Get rate limit status of all OAuth credentials
     _rate_limit_status = []
@@ -30,25 +31,27 @@ def handle_rate_limit(resource, path):
         result = api.rate_limit_status()['resources'][resource][path]
         _rate_limit_status.append(result)
 
-    # Check if maximum remaining calls in all auths is > 0
+    # IF maximum remaining calls in all auths is 0
+    # THEN sleep till reset time.
     idx = max(enumerate(_rate_limit_status), key=lambda x: x[1]['remaining'])[0]
-    if _rate_limit_status[idx]['remaining'] > 0:
-        # Pick auth with maximum remaining calls
-        switch_auth(idx)
-    else:
+    if _rate_limit_status[idx]['remaining'] == 0:
         # Pick auth with minimum reset time
         idx = min(enumerate(_rate_limit_status), key=lambda x: x[1]['reset'])[0]
         sleep_time = _rate_limit_status[idx]['reset'] - int(time.time())
         if sleep_time > 0:
+            print('\t--> Going to sleep now!')
             time.sleep(sleep_time + 5)
-        switch_auth(idx)
+            print("\t--> Good morning")
+
+    # Pick auth with maximum remaining calls
+    switch_auth(idx)
 
 
 def remaining_calls(resource, path):
     """ Get the remaining number of calls left for a given API resource """
     assert isinstance(resource, str) and isinstance(path, str)
     result = api.rate_limit_status()['resources'][resource][path]['remaining']
-    print(result)
+    print('Remaining calls for', path, ':', result)
     return result
 
 
@@ -97,15 +100,38 @@ def get_users():
 
 def cursor_iterator(cursor, resource, path):
     """ Iterator for tweepy cursors """
+    # First check to make sure enough calls are available
+    if remaining_calls(resource, path) == 0:
+        handle_rate_limit(resource, path)
+    err_count = 0
+
     while True:
         try:
             yield cursor.next()
+            remaining = int(api.last_response.headers['x-rate-limit-remaining'])
+            if remaining == 0:
+                handle_rate_limit(resource, path)
         except tweepy.RateLimitError as e:
             print(e.reason)
-            handle_rate_limit(resource, path)
+            err_count += 1
+            if err_count > 1:
+                break
+            else:
+                handle_rate_limit(resource, path)
+        except tweepy.error.TweepError as e:
+            print(e)
+            err_count += 1
+            if err_count > 1:
+                break
+            elif isinstance(e.message, list) and len(e.message) > 0 \
+                    and 'code' in e.message[0] \
+                    and e.message[0]['code'] == 429:
+                handle_rate_limit(resource, path)
         except Exception as e:
             print(e)
-            raise StopIteration
+            break
+        else:
+            err_count = 0
 
 
 def check_keyword(s, key):
@@ -113,10 +139,12 @@ def check_keyword(s, key):
     return bool(re.search(key, s, re.IGNORECASE))
 
 
-def get_all_tweets_of_user(screen_name, keywords=set()):
+def get_tweets_of_user(screen_name, nr_of_tweets=-1, keywords=set(), save_to_csv=True):
     """ Get all (max 3240 recent) tweets of given screen name """
     assert isinstance(screen_name, str)
     assert isinstance(keywords, set) and all(isinstance(k, str) for k in keywords)
+    assert isinstance(nr_of_tweets, int) and nr_of_tweets >= -1
+    assert isinstance(save_to_csv, bool)
 
     # Resource from which we want to collect tweets
     resource, path = 'statuses', '/statuses/user_timeline'
@@ -124,40 +152,58 @@ def get_all_tweets_of_user(screen_name, keywords=set()):
     # initialize a list to hold all the tweets
     alltweets = []
 
-    for page in cursor_iterator(
-            tweepy.Cursor(api.user_timeline, screen_name=screen_name,
-                          count=200, include_rts=True).pages(), resource, path):
-        alltweets.extend(page)
-        print("...%s tweets downloaded so far" % len(alltweets))
+    try:
+        for page in cursor_iterator(
+                tweepy.Cursor(api.user_timeline, screen_name=screen_name,
+                              count=200, include_rts=True).pages(), resource, path):
+            alltweets.extend(page)
+            print("...%s tweets downloaded so far" % len(alltweets))
+            if 0 < nr_of_tweets <= len(alltweets):
+                break
+    except KeyboardInterrupt:
+        pass
 
     # transform the tweepy tweets into a 2D array that will populate the csv
     outtweets = [[tweet.id_str,
                   tweet.text.replace('\n', ' ').replace('\r', ''),
                   tweet.created_at,
                   tweet.retweet_count,
+                  1 if tweet.in_reply_to_user_id is not None else 0,
+                  tweet.in_reply_to_user_id if tweet.in_reply_to_user_id is not None else -1,
+                  tweet.in_reply_to_status_id_str if tweet.in_reply_to_status_id_str is not None else -1,
                   tweet.author.id,
                   tweet.author.name,
+                  tweet.author.created_at,
                   tweet.author.followers_count,
                   tweet.author.friends_count,
                   tweet.author.statuses_count,
+                  tweet.author.listed_count,
+                  tweet.author.favourites_count,
+                  1 if tweet.author.verified else 0,
                   [k for k in keywords if check_keyword(tweet.text, k)],
                   [hashtag['text'] for hashtag in tweet.entities['hashtags']],
                   [url['expanded_url'] for url in tweet.entities['urls']]] for tweet in alltweets]
 
-    with open(os.path.join('results', '%s_tweets.csv' % screen_name), 'w', newline='', encoding='utf8') as f:
-        writer = csv.writer(f, delimiter="\t")
-        writer.writerow(["tweet_id", "text", "created_at", "retweet_count",
-                         "user_id", "screen_name", "#followers", "#followings",
-                         "#statuses", "keywords", "hashtags", "urls"])
-        writer.writerows(outtweets)
+    features = ["tweet_id", "text", "created_at", "retweet_count", "is_reply", "reply_to_user_id",
+                "reply_to_tweet_id", "user_id", "screen_name", "user_created_at", "#followers",
+                "#followings", "#statuses", '#listed', "#favourites", "verified", "keywords",
+                "hashtags", "urls"]
+
+    if save_to_csv:
+        with open(os.path.join('results', '%s_tweets.csv' % screen_name), 'w', newline='', encoding='utf8') as f:
+            writer = csv.writer(f, delimiter="\t")
+            writer.writerow(features)
+            writer.writerows(outtweets)
+
+    return features, outtweets
 
 
-def get_all_tweets_of_users(list_of_users, keywords=set()):
+def get_all_tweets_of_users(list_of_users, nr_of_tweets=-1, keywords=set()):
     """ Get the tweets all given users in list """
     assert isinstance(list_of_users, list) and all(isinstance(elem, str) for elem in list_of_users)
     for user in list_of_users:
         print('Getting tweets for %s' % user)
-        get_all_tweets_of_user(user, keywords)
+        get_tweets_of_user(user, nr_of_tweets=nr_of_tweets, keywords=keywords)
 
 
 def get_friends_of_user(screen_name):
@@ -187,14 +233,15 @@ def get_friends_of_user(screen_name):
                    user.listed_count,
                    user.statuses_count] for user in users]
 
+    features = ["user_screen_name", "friend_id", "friend_screen_name", "friends_#followers",
+                "friends_#followings", "friends_#listed", "friends_#statuses"]
+
     with open(os.path.join('results', '%s_friends.csv' % screen_name), 'w', newline='', encoding='utf8') as f:
         writer = csv.writer(f, delimiter="\t")
-        writer.writerow(["user_screen_name", "friend_id", "friend_screen_name",
-                         "friends_#followers", "friends_#followings", "friends_#listed",
-                         "friends_#statuses"])
+        writer.writerow(features)
         writer.writerows(outfriends)
 
-    return [user.screen_name for user in users]
+    return features, outfriends
 
 
 def get_friends_of_users(list_of_users):
@@ -203,6 +250,16 @@ def get_friends_of_users(list_of_users):
     for user in list_of_users:
         print('Getting friends of %s' % user)
         get_friends_of_user(user)
+
+
+def get_user_info(screen_name):
+    """
+    Get user object for given screen_name
+    :param screen_name: the user
+    :return: User object
+    """
+    assert isinstance(screen_name, str)
+    return api.get_user(screen_name=screen_name)
 
 
 def check_query(s):
@@ -220,10 +277,12 @@ def check_query(s):
             or s[0] == '-' or s[0] == '@' or s[0] == '#')
 
 
-def search_tweets(qry, since_id=None, max_id=None):
+def search_tweets(qry, nr_of_tweets=-1, since_id=None, max_id=None, save_to_csv=True):
     assert isinstance(qry, str)
-    assert (max_id is None or isinstance(max_id, int))
-    assert (since_id is None or isinstance(since_id, int))
+    assert isinstance(max_id, (int, None))
+    assert isinstance(since_id, (int, None))
+    assert isinstance(nr_of_tweets, int) and nr_of_tweets >= -1
+    assert isinstance(save_to_csv, bool)
 
     # Get all the relevant keywords from the query
     import shlex
@@ -239,36 +298,52 @@ def search_tweets(qry, since_id=None, max_id=None):
     # initialize a list to hold all the tweets
     alltweets = []
 
-    for page in cursor_iterator(
-            tweepy.Cursor(api.search, q=qry, count=200, since_id=since_id,
-                          max_id=max_id).pages(), resource, path):
-        alltweets.extend(page)
-        print("...%s tweets downloaded so far" % len(alltweets))
-        # if len(alltweets) > 3000:
-        #     break
+    try:
+        for page in cursor_iterator(
+                tweepy.Cursor(api.search, q=qry, count=200, lang='en', since_id=since_id,
+                              max_id=max_id).pages(), resource, path):
+            alltweets.extend(page)
+            print("...%s tweets downloaded so far" % len(alltweets))
+            if 0 < nr_of_tweets <= len(alltweets):
+                break
+    except KeyboardInterrupt:
+        pass
 
     # transform the tweepy tweets into a 2D array that will populate the csv
     outtweets = [[tweet.id_str,
                   tweet.text.replace('\n', ' ').replace('\r', ''),
                   tweet.created_at,
                   tweet.retweet_count,
+                  1 if tweet.in_reply_to_user_id is not None else 0,
+                  tweet.in_reply_to_user_id if tweet.in_reply_to_user_id is not None else -1,
+                  tweet.in_reply_to_status_id_str if tweet.in_reply_to_status_id_str is not None else -1,
                   tweet.author.id,
                   tweet.author.name,
+                  tweet.author.created_at,
                   tweet.author.followers_count,
                   tweet.author.friends_count,
                   tweet.author.statuses_count,
+                  tweet.author.listed_count,
+                  tweet.author.favourites_count,
+                  1 if tweet.author.verified else 0,
                   [k for k in keywords if check_keyword(tweet.text, k)],
                   [hashtag['text'] for hashtag in tweet.entities['hashtags']],
                   [url['expanded_url'] for url in tweet.entities['urls']]] for tweet in alltweets]
 
-    with open(os.path.join('results', 'search_%s_tweets.csv' % time),
-              mode='w', newline='', encoding='utf8') as f:
-        writer = csv.writer(f, delimiter="\t")
-        f.write('#query,' + qry + '\n')
-        writer.writerow(["tweet_id", "text", "created_at", "retweet_count",
-                         "user_id", "screen_name", "#followers", "#followings",
-                         "#statuses", "keywords", "hashtags", "urls"])
-        writer.writerows(outtweets)
+    features = ["tweet_id", "text", "created_at", "retweet_count", "is_reply", "reply_to_user_id",
+                "reply_to_tweet_id", "user_id", "screen_name", "user_created_at", "#followers",
+                "#followings", "#statuses", '#listed', "#favourites", "verified", "keywords",
+                "hashtags", "urls"]
+
+    if save_to_csv:
+        with open(os.path.join('results', 'search_%s_tweets.csv' % time),
+                  mode='w', newline='', encoding='utf8') as f:
+            writer = csv.writer(f, delimiter="\t")
+            writer.writerow(['#query', qry])
+            writer.writerow(features)
+            writer.writerows(outtweets)
+
+    return features, outtweets
 
 if __name__ == "__main__":
     # Set users from whom to get tweets
@@ -287,7 +362,6 @@ if __name__ == "__main__":
     # Search tweets on keywords
     # since_id = most recent tweet id
     # max_id = oldest retrieved tweet id - 1
-    # (britain eu) OR ((uk OR britain OR ukip) referendum) OR brexit OR #voteleave OR #votestay OR #EUreferendum OR #StrongerIn OR #Euref OR #Remain OR #voteremain
     query = '(britain eu) ' \
             'OR ((uk OR britain OR ukip) referendum) ' \
             'OR brexit ' \
@@ -298,4 +372,4 @@ if __name__ == "__main__":
             'OR #Euref ' \
             'OR #Remain ' \
             'OR #voteremain'
-    search_tweets(query, since_id=790324301446676480)#, max_id=790314732670640127)
+    # search_tweets(query, nr_of_tweets=20000, since_id=790324301446676480)#, max_id=790314732670640127)
