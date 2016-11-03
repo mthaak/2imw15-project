@@ -58,7 +58,7 @@ class TweetEnricher:
         Removes stop words from tokens
         :return: tokens without stopwords
         """
-        tokens_without_stopwords = [w for w in tokens if not w in self.stopset]
+        tokens_without_stopwords = [w for w in tokens if w not in self.stopset]
         return tokens_without_stopwords
 
     def hasNegativeOpinions(self,tokens):
@@ -68,12 +68,13 @@ class TweetEnricher:
         """
         count = 0
         negative = 0
+        negative_ops = [x.lower() for x in self.negative_opinions]
         for w in tokens:
-            if w.lower() in [x.lower() for x in self.negative_opinions]:
-                count = count + 1
+            if w.lower() in negative_ops:
+                count += 1
         if count > 0:
             negative = 1
-        return count,negative
+        return count, negative
 
     def hasPositiveOpinions(self,tokens):
         '''
@@ -81,13 +82,14 @@ class TweetEnricher:
         :return: 1 if positive opinions present. 0 otherwise
         '''
         count = 0
-        positive=0
+        positive = 0
+        positive_ops = [x.lower() for x in self.positive_opinions]
         for w in tokens:
-            if w.lower() in [x.lower() for x in self.positive_opinions]:
-                count = count + 1
+            if w.lower() in positive_ops:
+                count += 1
         if count > 0:
             positive = 1
-        return count,positive
+        return count, positive
 
     def hasVulgarWords(self,tokens):
         '''
@@ -505,12 +507,12 @@ class TweetEnricher:
         tokens = [w for w in tokens if not w in set(stopwords.words('english') + self.web_abbreviations + list(string.punctuation))]
 
         positive_count, is_positive = self.hasPositiveOpinions(tokens)
-        negative_count, is_nagative = self.hasNegativeOpinions(tokens)
+        negative_count, is_negative = self.hasNegativeOpinions(tokens)
 
         positive_count += self.hasPositiveEmoticons(tokens)
         negative_count += self.hasNegativeEmoticons(tokens)
 
-        positive_percentage = positive_count / len(text) * 100
-        negative_percentage = negative_count / len(text) * 100
+        positive_percentage = positive_count / len(tokens)
+        negative_percentage = negative_count / len(tokens)
 
-        return positive_percentage,negative_percentage
+        return positive_percentage, negative_percentage
