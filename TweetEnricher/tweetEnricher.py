@@ -261,25 +261,13 @@ class TweetEnricher:
 
         # initializing matrix to all 0s
         tweet_n_gram_count_dict = {}
-        for item in self.n_gram_count_matrix:
-            tweet_n_gram_count_dict[item]=0
 
-        self.vectorizer.fit_transform(tweet)
-        feature_names = self.vectorizer.get_feature_names()
-        for term in nltk.pos_tag(feature_names):
-            # Remove proper nouns
-            if term[1] == "NNP" or term[1] == "NNPS":
-                feature_names.remove(term[0])
+        for gram in self.n_gram_count_matrix:
+            tweet_n_gram_count_dict[gram] = 0
+            p = re.compile(re.escape(gram))
+            if re.findall(p, str(tweet)):
+                tweet_n_gram_count_dict[gram] = 1
 
-        # Remove potential Brexit keywords
-        for i in self.brexit_keywords:
-            if i in feature_names:
-                feature_names.remove(i)
-
-        #If n grams collected present in n grams for whole document too, set 1 for that n gram in matrix row corresponding to tweet
-        for n_gram in self.n_gram_count_matrix.keys():
-            if n_gram in feature_names:
-                tweet_n_gram_count_dict[n_gram] = 1
         return tweet_n_gram_count_dict
 
     def returnUnigramMatrix(self,collection):
@@ -302,7 +290,7 @@ class TweetEnricher:
         feature_names = self.vectorizer.get_feature_names()
         print("Size of n grams =  %d " % len(feature_names))
 
-        # Remove n-grams with #,@,RT, only numbers
+        # #Remove n-grams with #,@,RT, only numbers
         # for i in feature_names:
         #     if re.findall('#.*', i):
         #         feature_names.remove(i)
@@ -327,9 +315,8 @@ class TweetEnricher:
         #     # Remove proper nouns
         #     if term[1] == "NNP" or term[1] == "NNPS" or term[1] == "NN":
         #         feature_names.remove(term[0])
-
-
-
+        #
+        #
         # #Find entropy of each n-gram
         # entropy = {}
         # for item in feature_names:
@@ -358,10 +345,10 @@ class TweetEnricher:
         #         writer.writerow([w, entropy.get(w)])
 
         # USING good n-grams generated before by current commented sections entropy threshold 0.2
-        features = [line.rstrip('\n') for line in open('../Data/Lists/n_grams_final.csv')]
+        feature_names = [line.rstrip('\n') for line in open('../Data/test/entropy_lt_0.5_counts', encoding='utf8')]
 
         term_freqs = X.sum(axis=0).A1
-        self.n_gram_count_matrix = dict(zip(features, term_freqs))
+        self.n_gram_count_matrix = dict(zip(feature_names, term_freqs))
 
         for w in self.n_gram_count_matrix.copy():
           #keep only those n-grams that have a frequency > 5
@@ -374,7 +361,7 @@ class TweetEnricher:
         #         entropy[gram] = entropy[gram]/(math.log(self.n_gram_count_matrix.get(gram)))
         #     else:
         #         entropy.pop(gram)
-        #
+
         # print("Reduced Size of n grams = %d " % len(entropy))
         #
         # # n-gram entropies
@@ -478,3 +465,13 @@ class TweetEnricher:
             binary_ngrams_row.append(n_gram_feature_dict.get(w))
 
         return row, basic_row, binary_ngrams_row
+
+    def enrichTweetsWithNgrams(self, tweet):
+        '''
+        Returns only n gram features for tweet
+        '''
+        row = []
+        n_gram_feature_dict = self.collectNGramFeatures(tweet)
+        for w in n_gram_feature_dict:
+            row.append(n_gram_feature_dict.get(w))
+        return row
