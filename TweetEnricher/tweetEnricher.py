@@ -23,6 +23,8 @@ class TweetEnricher:
         self.twitter_jargons = [line.rstrip('\n') for line in open('../Data/Lists/TwitterSlangsAndAbbreviations')]
         self.web_abbreviations = [line.rstrip('\n') for line in open('../Data/Lists/WebAcronymns')]
         self.emoticons_list = [line.rstrip('\n') for line in open('../Data/Lists/EmojiList')]
+        self.pos_emoticons_list = [line.rstrip('\n') for line in open('../Data/Lists/PositiveEmojiList')]
+        self.neg_emoticons_list = [line.rstrip('\n') for line in open('../Data/Lists/NegativeEmojiList')]
         self.speech_act_verbs = [line.rstrip('\n') for line in open('../Data/Lists/StemmedSpeechActVerbs')]
         self.trusted_domains = [line.rstrip('\n') for line in open('../Data/Lists/TrustedDomains')]
         self.verb_tags = ['VB', 'VBD', 'VBG', 'VBN', 'VBP', 'VBZ']
@@ -290,62 +292,62 @@ class TweetEnricher:
         feature_names = self.vectorizer.get_feature_names()
         print("Size of n grams =  %d " % len(feature_names))
 
-        # #Remove n-grams with #,@,RT, only numbers
-        # for i in feature_names:
-        #     if re.findall('#.*', i):
-        #         feature_names.remove(i)
-        #     elif re.findall('[\d]+', i):
-        #         feature_names.remove(i)
-        #     elif re.findall('@.*', i):
-        #         feature_names.remove(i)
-        #     elif re.findall('RT.*', i):
-        #         feature_names.remove(i)
-        #     elif re.findall('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+',i):
-        #         feature_names.remove(i)
-        #
-        # # Remove potential Brexit keywords
-        # for i in feature_names:
-        #     for j in i.split():
-        #         if j in self.brexit_keywords:
-        #             feature_names.remove(i)
-        #             break
-        #
-        #
-        # for term in nltk.pos_tag(feature_names):
-        #     # Remove proper nouns
-        #     if term[1] == "NNP" or term[1] == "NNPS" or term[1] == "NN":
-        #         feature_names.remove(term[0])
-        #
-        #
-        # #Find entropy of each n-gram
-        # entropy = {}
-        # for item in feature_names:
-        #     entropy[item] = 0
-        # total = len(SA_tagged_collection)
-        # occurrences = {}
-        # tagged_tweets= {}
-        # for gram in SA_tagged_collection:
-        #     if SA_tagged_collection.get(gram)[1] != '':
-        #         tagged_tweets[gram] = SA_tagged_collection.get(gram)
-        #
-        # for item in feature_names:
-        #     p = re.compile(re.escape(item))
-        #     for gram in tagged_tweets:
-        #         occurrences[tagged_tweets.get(gram)[1]] = 0
-        #     for gram in tagged_tweets:
-        #         times_in_tweet = len(re.findall(p, str(tagged_tweets.get(gram)[0])))
-        #         occurrences[tagged_tweets.get(gram)[1]] += times_in_tweet
-        #     for gram in tagged_tweets:
-        #         entropy[item] += -(occurrences[tagged_tweets.get(gram)[1]]/total)*math.log((occurrences[tagged_tweets.get(gram)[1]]+1)/total)
-        #
-        # # n-gram entropies
-        # with open('../Data/test/entropy_raw.csv', 'w+', newline='', encoding='utf8') as out_file:
-        #     writer = csv.writer(out_file)
-        #     for w in sorted(entropy, key=entropy.get):
-        #         writer.writerow([w, entropy.get(w)])
+        #Remove n-grams with #,@,RT, only numbers
+        for i in feature_names:
+            if re.findall('#.*', i):
+                feature_names.remove(i)
+            elif re.findall('[\d]+', i):
+                feature_names.remove(i)
+            elif re.findall('@.*', i):
+                feature_names.remove(i)
+            elif re.findall('RT.*', i):
+                feature_names.remove(i)
+            elif re.findall('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+',i):
+                feature_names.remove(i)
 
-        # USING good n-grams generated before by current commented sections entropy threshold 0.2
-        feature_names = [line.rstrip('\n') for line in open('../Data/test/entropy_lt_0.5_counts', encoding='utf8')]
+        # Remove potential Brexit keywords
+        for i in feature_names:
+            for j in i.split():
+                if j in self.brexit_keywords:
+                    feature_names.remove(i)
+                    break
+
+
+        for term in nltk.pos_tag(feature_names):
+            # Remove proper nouns
+            if term[1] == "NNP" or term[1] == "NNPS" or term[1] == "NN":
+                feature_names.remove(term[0])
+
+
+        #Find entropy of each n-gram
+        entropy = {}
+        for item in feature_names:
+            entropy[item] = 0
+        total = len(SA_tagged_collection)
+        occurrences = {}
+        tagged_tweets= {}
+        for gram in SA_tagged_collection:
+            if SA_tagged_collection.get(gram)[1] != '':
+                tagged_tweets[gram] = SA_tagged_collection.get(gram)
+
+        for item in feature_names:
+            p = re.compile(re.escape(item))
+            for gram in tagged_tweets:
+                occurrences[tagged_tweets.get(gram)[1]] = 0
+            for gram in tagged_tweets:
+                times_in_tweet = len(re.findall(p, str(tagged_tweets.get(gram)[0])))
+                occurrences[tagged_tweets.get(gram)[1]] += times_in_tweet
+            for gram in tagged_tweets:
+                entropy[item] += -(occurrences[tagged_tweets.get(gram)[1]]/total)*math.log((occurrences[tagged_tweets.get(gram)[1]]+1)/total)
+
+        # n-gram entropies
+        with open('../Data/test/entropy_raw.csv', 'w+', newline='', encoding='utf8') as out_file:
+            writer = csv.writer(out_file)
+            for w in sorted(entropy, key=entropy.get):
+                writer.writerow([w, entropy.get(w)])
+
+        # # USING good n-grams generated before by current commented sections entropy threshold 0.2
+        # feature_names = [line.rstrip('\n') for line in open('../Data/test/entropy_lt_0.5_counts', encoding='utf8')]
 
         term_freqs = X.sum(axis=0).A1
         self.n_gram_count_matrix = dict(zip(feature_names, term_freqs))
@@ -355,20 +357,22 @@ class TweetEnricher:
             if(self.n_gram_count_matrix.get(w) < 5):
                 self.n_gram_count_matrix.pop(w)
 
-        # # Normalize by dividing by log of number of occurences on n-gram in collection
-        # for gram in entropy.copy():
-        #     if gram in self.n_gram_count_matrix.keys():
-        #         entropy[gram] = entropy[gram]/(math.log(self.n_gram_count_matrix.get(gram)))
-        #     else:
-        #         entropy.pop(gram)
+        print("Reduced Size of n grams = %d " % len(entropy))
 
-        # print("Reduced Size of n grams = %d " % len(entropy))
-        #
-        # # n-gram entropies
-        # with open('../Data/test/entropy.csv', 'w+', newline='', encoding='utf8') as out_file:
-        #     writer = csv.writer(out_file)
-        #     for w in sorted(entropy, key=entropy.get):
-        #         writer.writerow([w, entropy.get(w)])
+        # Normalize by dividing by log of number of occurences on n-gram in collection
+        for gram in entropy.copy():
+            if gram in self.n_gram_count_matrix.keys():
+                entropy[gram] = entropy[gram]/(math.log(self.n_gram_count_matrix.get(gram)))
+            else:
+                entropy.pop(gram)
+
+        print("Reduced Size of n grams = %d " % len(entropy))
+
+        # n-gram entropies
+        with open('../Data/test/entropy.csv', 'w+', newline='', encoding='utf8') as out_file:
+            writer = csv.writer(out_file)
+            for w in sorted(entropy, key=entropy.get):
+                writer.writerow([w, entropy.get(w)])
 
         return self.tweetFeatures()
 
@@ -475,3 +479,38 @@ class TweetEnricher:
         for w in n_gram_feature_dict:
             row.append(n_gram_feature_dict.get(w))
         return row
+
+    def hasPositiveEmoticons(self, tokens):
+        '''
+        Checks if abbreviations from online list present
+        :return: 1 if present
+        '''
+        for w in tokens:
+            if w in self.pos_emoticons_list:
+                return 1
+        return 0
+
+    def hasNegativeEmoticons(self, tokens):
+        '''
+        Checks if abbreviations from online list present
+        :return: 1 if present
+        '''
+        for w in tokens:
+            if w in self.neg_emoticons_list:
+                return 1
+        return 0
+
+    def sentiment(self, text):
+        tokens = self.tokenize(text)
+        tokens = [w for w in tokens if not w in set(stopwords.words('english') + self.web_abbreviations + list(string.punctuation))]
+
+        positive_count, is_positive = self.hasPositiveOpinions(tokens)
+        negative_count, is_nagative = self.hasNegativeOpinions(tokens)
+
+        positive_count += self.hasPositiveEmoticons(tokens)
+        negative_count += self.hasNegativeEmoticons(tokens)
+
+        positive_percentage = positive_count / len(text) * 100
+        negative_percentage = negative_count / len(text) * 100
+
+        return positive_percentage,negative_percentage
