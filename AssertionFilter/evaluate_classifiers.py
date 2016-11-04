@@ -7,7 +7,7 @@ import pickle
 import datetime
 
 TWEETS_FILENAME = "../Data/tweets_20161024_111847_assertionlabeled.csv"
-X_FILENAME = "../Data/Features_basic"
+X_FILENAME = "../Data/Features_binary.pickle"
 RESULTS_FILENAME = "./evaluate_classifiers_results.csv"
 
 # Get labels from tweets.csv file
@@ -48,23 +48,8 @@ classifier = sklearn.dummy.DummyClassifier(strategy='most_frequent')
 parameters = [
     {}
 ]
-# classifiers_with_parameters.append((classifier, parameters))
+classifiers_with_parameters.append((classifier, parameters))
 
-# ensemble
-
-# BaggingClassifier
-classifier = sklearn.ensemble.BaggingClassifier()
-parameters = [
-    {}
-]
-# classifiers_with_parameters.append((classifier, parameters))
-
-# RandomForestClassifier
-classifier = sklearn.ensemble.RandomForestClassifier()
-parameters = [
-    {}
-]
-# classifiers_with_parameters.append((classifier, parameters))
 
 # discriminant_analysis
 # LinearDiscrimantAnalysis
@@ -72,7 +57,7 @@ classifier = sklearn.discriminant_analysis.LinearDiscriminantAnalysis()
 parameters = [
     {}
 ]
-# classifiers_with_parameters.append((classifier, parameters))
+classifiers_with_parameters.append((classifier, parameters))
 
 # linear_model
 # LogisticRegression
@@ -82,7 +67,7 @@ parameters = [
         "solver": ["newton-cg", "lbfgs", "liblinear", "sag"]
     }
 ]
-# classifiers_with_parameters.append((classifier, parameters))
+classifiers_with_parameters.append((classifier, parameters))
 
 # naive_bayes
 # GuassianNB
@@ -104,51 +89,34 @@ classifier = sklearn.naive_bayes.BernoulliNB()
 parameters = [
     {"binarize": [False]}
 ]
-# classifiers_with_parameters.append((classifier, parameters))
+classifiers_with_parameters.append((classifier, parameters))
 
 # neighbors
 # KNeighborsClassifier
 classifier = sklearn.neighbors.KNeighborsClassifier()
 parameters = [
-    {
-        "weights": ["uniform", "distance"],
-        "algorithm": ["ball_tree", "brute"],
-        "metric": ["minkowski", "hamming", "canberra", "braycurtis"]
-    },
-    {
-        "weights": ["uniform", "distance"],
-        "algorithm": ["kd_tree"],
-    }
+    # {
+    #     "weights": ["uniform", "distance"],
+    #     "algorithm": ["ball_tree", "brute"],
+    #     "metric": ["minkowski", "hamming", "canberra", "braycurtis"]
+    # },
+    # {
+    #     "weights": ["uniform", "distance"],
+    #     "algorithm": ["kd_tree"],
+    # }
 ]
 classifiers_with_parameters.append((classifier, parameters))
-
-# RadiusNeighborsClassifier
-classifier = sklearn.neighbors.RadiusNeighborsClassifier()
-parameters = [
-    {
-        # "weight": ["uniform", "distance"],
-        # "algorithm": ["ball_tree", "kd_tree", "brute"],
-        # "metric": ["minkowski", "hamming", "canberra", "braycurtis"]
-    }
-]
-# classifiers_with_parameters.append((classifier, parameters))
 
 # svm
 # SVC
 classifier = sklearn.svm.SVC()
 parameters = [
     {
-        # "kernel": ["linear", "poly", "rbf", "sigmoid", "precomputed"],
+        "kernel": ["linear", "poly", "rbf", "sigmoid", "precomputed"],
     }
 ]
-# classifiers_with_parameters.append((classifier, parameters))
+classifiers_with_parameters.append((classifier, parameters))
 
-# LinearSVC
-classifier = sklearn.svm.LinearSVC()
-parameters = [
-    {}
-]
-# classifiers_with_parameters.append((classifier, parameters))
 
 # tree
 # DecisionTreeClassifier
@@ -159,6 +127,16 @@ parameters = [
 
 
 # classifiers_with_parameters.append((classifier, parameters))
+
+
+# ensemble
+
+# RandomForestClassifier
+classifier = sklearn.ensemble.RandomForestClassifier()
+parameters = [
+    {}
+]
+classifiers_with_parameters.append((classifier, parameters))
 
 
 def write_results_to_file(clf, scorings, grid_scores):
@@ -188,8 +166,6 @@ def scorer(truth, pred):
 
     grid_scores.append(
         [f1_score,
-         sklearn.metrics.precision_score(truth, pred),
-         sklearn.metrics.recall_score(truth, pred),
          sklearn.metrics.accuracy_score(truth, pred)]
         + to_list(sklearn.metrics.confusion_matrix(truth, pred))
     )
@@ -197,7 +173,7 @@ def scorer(truth, pred):
     return f1_score  # optimize for f1 score
 
 
-scorings = ['f1', 'precision', 'recall', 'accuracy', 'tp', 'fp', 'fn', 'tn']
+scorings = ['f1', 'accuracy', 'tp', 'fp', 'fn', 'tn']
 my_scorer = sklearn.metrics.make_scorer(scorer, greater_is_better=True)
 
 # Evaluate classifiers with different parameters
