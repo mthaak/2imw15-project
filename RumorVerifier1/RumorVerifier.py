@@ -24,7 +24,7 @@ def extract_features(file_name):
 
     # Load the tweet enricher
     tweet_enricher = TweetEnricher()
-    tokens = df['text'].apply(tweet_enricher.tokenize).apply(tweet_enricher.remove_stop_words)
+    tokens = df['text'].apply(tweet_enricher.tokenize).apply(tweet_enricher.removeStopWords)
 
     # Load features
     features = df['tweet_id'].to_frame()
@@ -33,7 +33,7 @@ def extract_features(file_name):
     features['role'] = df.apply(lambda x: x['#followers'] / x['#followings'])
 
     from DataCollection.twitter_api import get_tweets_of_user, search_tweets
-    from DataCollection.utils import month_delta
+    from DataCollection.utils import days_delta
 
     # store the list of users for whom the below features is already computed
     # to prevent recomputing
@@ -51,7 +51,7 @@ def extract_features(file_name):
             for i, r in tweets:
                 replies_to_i = replies[replies['reply_to_tweet_id'] == i]
                 replies_to_i = replies_to_i['text'].apply(tweet_enricher.sentiment) \
-                    .apply(lambda x: (x[0] / (x[1] + 1)) > 1).value_counts()
+                    .apply(lambda x: None if x[0] == x[1] else x[0] > x[1]).value_counts()
                 p_count += replies_to_i[True]
                 n_count += replies_to_i[False]
             controversiality = math.pow(p_count + n_count, min(p_count / (n_count + 1), n_count / (p_count + 1)))
@@ -65,7 +65,7 @@ def extract_features(file_name):
 
             # ENGAGEMENT OF USER
             user_created_at = parser.parse(row['user_created_at'])
-            engagement = (row['#statuses'] + row['#favourites']) / month_delta(user_created_at, user_created_at.today())
+            engagement = (row['#statuses'] + row['#favourites']) / days_delta(user_created_at, user_created_at.today())
             df.loc[index, 'engagement'] = engagement
 
             users[row['screen_name']] = controversiality, originality, engagement
@@ -76,10 +76,11 @@ def extract_features(file_name):
 
     features['hasVulgarWords'] = tokens.apply(tweet_enricher.hasVulgarWords)
     features['hasEmoticons'] = tokens.apply(tweet_enricher.hasEmoticons)
-    # features['isInterrogative'] = tokens.apply(tweet_enricher.isInterrogative)
-    # features['isExclamatory'] = tokens.apply(tweet_enricher.isExclamatory)
+    features['isInterrogative'] = tokens.apply(tweet_enricher.isInterrogative)
+    features['isExclamatory'] = tokens.apply(tweet_enricher.isExclamatory)
     features['hasAbbreviations'] = tokens.apply(tweet_enricher.hasAbbreviations)
     features['hasTwitterJargons'] = tokens.apply(tweet_enricher.hasTwitterJargons)
+    features['hasFPP'] = tokens.apply(tweet_enricher.hasFirstPersonPronouns)
     features['hasSource'] = df['urls'].apply(lambda x: 1 if len(x) > 0 else 0)
 
     hasSpeechActVerbs = tokens.apply(tweet_enricher.hasSpeechActVerbs)
@@ -108,18 +109,55 @@ def extract_features(file_name):
     print(features.head(2))
 
     # features.to_csv(os.path.join('results', os.path.splitext(file_name)[0] + '_features.csv'))
-    pickle.dump(features, open(os.path.splitext(file_name)[0] + '_features.p', "wb"))
+    pickle.dump(features, open(os.path.join('results', os.path.splitext(file_name)[0] + '_features.p'), "wb"))
     return features
 
 
-def classify(features):
+def extract_cluster_features(file_name, features, clusters=[]):
+    assert isinstance(clusters, list)
+    assert all(isinstance(x, list) and all(isinstance(y, int) and y > 0 for y in x) for x in clusters)
+
+    # Load the tweet enricher
+    tweet_enricher = TweetEnricher()
+
+    cl_df = pd.DataFrame()
+    for index, cluster in enumerate(clusters):
+        df = features.loc[cluster]
+        df.to_csv(os.path.join('results', os.path.splitext(file_name)[0] + '_features_cluster_%s.csv' % index))
+        cl_df[index, 'credibility'] = df['credibility'].mean()
+        cl_df[index, 'influence'] = df['influence'].mean()
+        cl_df[index, 'role'] = df['role'].mean()
+        cl_df[index, 'controversiality'] = df['controversiality'].mean()
+        cl_df[index, 'originality'] = df['originality'].mean()
+        cl_df[index, 'engagement'] = df['engagement'].mean()
+        cl_df[index, 'hasVulgarWords'] = df['hasVulgarWords'].mean()
+        cl_df[index, 'hasEmoticons'] = df['hasEmoticons'].mean()
+        cl_df[index, 'isInterrogative'] = df['isInterrogative'].mean()
+        cl_df[index, 'isExclamatory'] = df['isExclamatory'].mean()
+        cl_df[index, 'hasAbbreviations'] = df['hasAbbreviations'].mean()
+        cl_df[index, 'hasTwitterJargons'] = df['hasTwitterJargons'].mean()
+        cl_df[index, 'hasFPP'] = df['hasFPP'].mean()
+        for key in tweet_enricher.speech_act_verbs:
+            cl_df[index, key] = df[key].mean()
+        cl_df[index, 'has#'] = df['has#'].mean()
+        cl_df[index, '#Position'] = df['#Position'].mean()
+        cl_df[index, 'hasRT'] = df['hasRT'].mean()
+        cl_df[index, 'RTPosition'] = df['RTPosition'].mean()
+        cl_df[index, 'has@'] = df['has@'].mean()
+        cl_df[index, '@Position'] = df['@Position'].mean()
+        cl_df[index, 'isRumor'] = df['isRumor'].mean()
+
+        # pickle.dump(clusters, open(os.path.join('results', os.path.splitext(file_name)[0] + '_clusters.p')), "wb")
+
+
+def classify(df):
     """
     Train and evaluates a classifier.
-    :param features:
+    :param df:
     :return: learned classifier model
     """
-    X = features[features.columns.pop('isRumor')].as_matrix()
-    y = features['isRumor'].as_matrix()
+    X = df[df.columns.pop('isRumor')].as_matrix()
+    y = df['isRumor'].as_matrix()
     clf = MultinomialNB
     GridSearchCV(clf, param_grid={}, cv=5, scoring='f1', n_jobs=-1)
 
@@ -129,6 +167,10 @@ if __name__ == "__main__":
     file_name = 'search_20161102_211623_tweets.csv'
     df = extract_features(file_name)
     # df = pickle.load(open(os.path.splitext(file_name)[0] + '_features.p', "rb"))
+
+    # EXTRACT CLUSTER FEATURES
+    # clusters = pickle.load(open(os.path.join('results', os.path.splitext(file_name)[0] + '_clusters.p')), "rb")
+    # extract_cluster_features(file_name, df, clusters)
 
     # TRAIN CLASSIFIER
     # classify(features=df)
