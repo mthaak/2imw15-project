@@ -25,19 +25,25 @@ class TweetEnricher:
         self.emoticons_list = [line.rstrip('\n') for line in open('../Data/Lists/EmojiList')]
         self.pos_emoticons_list = [line.rstrip('\n') for line in open('../Data/Lists/PositiveEmojiList')]
         self.neg_emoticons_list = [line.rstrip('\n') for line in open('../Data/Lists/NegativeEmojiList')]
+        self.first_person_pronouns = [line.rstrip('\n') for line in open('../Data/Lists/FirstPersonPronouns')]
         self.speech_act_verbs = [line.rstrip('\n') for line in open('../Data/Lists/StemmedSpeechActVerbs')]
         self.trusted_domains = [line.rstrip('\n') for line in open('../Data/Lists/TrustedDomains')]
         self.verb_tags = ['VB', 'VBD', 'VBG', 'VBN', 'VBP', 'VBZ']
         self.n_gram_count_matrix = {}
         self.vectorizer = CountVectorizer(ngram_range=(1, 3), tokenizer=self.tokenizer.tokenize,
-                                     stop_words=list(self.stopset) + self.web_abbreviations + list(string.punctuation)+["...","..",")","(","-->","->",">>","#","RT","@"])
+                                          stop_words=list(self.stopset)
+                                                     + self.web_abbreviations
+                                                     + list(string.punctuation)
+                                                     + ["…", "...", "..", ")", "(", "-->", "->", ">>", "#", "RT", "@"])
         self.vectorizer_unigram = CountVectorizer(ngram_range=(1, 1), tokenizer=self.tokenizer.tokenize,
-                                          stop_words=list(self.stopset) + self.web_abbreviations + list(string.punctuation))
+                                                  stop_words=list(self.stopset)
+                                                             + self.web_abbreviations
+                                                             + list(string.punctuation))
 
 
     def tweetFeatures(self):
-        self.tweet_features = ["VulgarWords", "Emoticons", "Interrogation",
-                               "Exclamation", "Abbreviations", "TwitterJargons", "#", "# position", "@", "@ position", "RT", "RT position", "Link"]
+        self.tweet_features = ["VulgarWords", "Emoticons", "Interrogation", "Exclamation", "Abbreviations",
+                               "TwitterJargons", "#", "# position", "@", "@ position", "RT", "RT position", "Link"]
         for w in self.speech_act_verbs:
             self.tweet_features.append(w)
         self.tweet_features.append(["NegativeOpnions", "PositiveOpnions","NumbersPresent","Non-Ascii Characters","GoodLink"])
@@ -58,7 +64,7 @@ class TweetEnricher:
         Removes stop words from tokens
         :return: tokens without stopwords
         """
-        tokens_without_stopwords = [w for w in tokens if not w in self.stopset]
+        tokens_without_stopwords = [w for w in tokens if w not in self.stopset]
         return tokens_without_stopwords
 
     def hasNegativeOpinions(self,tokens):
@@ -68,12 +74,13 @@ class TweetEnricher:
         """
         count = 0
         negative = 0
+        negative_ops = [x.lower() for x in self.negative_opinions]
         for w in tokens:
-            if w.lower() in [x.lower() for x in self.negative_opinions]:
-                count = count + 1
+            if w.lower() in negative_ops:
+                count += 1
         if count > 0:
             negative = 1
-        return count,negative
+        return count, negative
 
     def hasPositiveOpinions(self,tokens):
         '''
@@ -81,13 +88,14 @@ class TweetEnricher:
         :return: 1 if positive opinions present. 0 otherwise
         '''
         count = 0
-        positive=0
+        positive = 0
+        positive_ops = [x.lower() for x in self.positive_opinions]
         for w in tokens:
-            if w.lower() in [x.lower() for x in self.positive_opinions]:
-                count = count + 1
+            if w.lower() in positive_ops:
+                count += 1
         if count > 0:
             positive = 1
-        return count,positive
+        return count, positive
 
     def hasVulgarWords(self,tokens):
         '''
@@ -157,7 +165,7 @@ class TweetEnricher:
         :return: 1 if present, 0 otherwise; 1 if present in the beginning, 0 oherwise
         '''
         for index, term in enumerate(tokens):
-           if re.match("#.*", term):
+            if re.match("#\w*", term):
                 if 2 * index < len(tokens):
                     return 1,1
                 else:
@@ -183,7 +191,7 @@ class TweetEnricher:
         :return: 1 if present, 0 otherwise; 1 if present in the beginning, 0 oherwise
         '''
         for index, term in enumerate(tokens):
-           if re.match("@.*", term):
+            if re.match("@\w*", term):
                 if 2 * index < len(tokens):
                     return 1,1
                 else:
@@ -513,16 +521,22 @@ class TweetEnricher:
 
     def sentiment(self, text):
         tokens = self.tokenize(text)
-        total = len(tokens)
         tokens = [w for w in tokens if not w in set(stopwords.words('english') + self.web_abbreviations + list(string.punctuation))]
 
         positive_count, is_positive = self.hasPositiveOpinions(tokens)
-        negative_count, is_nagative = self.hasNegativeOpinions(tokens)
+        negative_count, is_negative = self.hasNegativeOpinions(tokens)
 
         positive_count += self.hasPositiveEmoticons(tokens)
         negative_count += self.hasNegativeEmoticons(tokens)
 
-        positive_percentage = positive_count / total
-        negative_percentage = negative_count / total
+        positive_percentage = positive_count / len(tokens)
+        negative_percentage = negative_count / len(tokens)
 
-        return positive_percentage,negative_percentage
+        return positive_percentage, negative_percentage
+
+
+    def hasFirstPersonPronouns(self, tokens):
+        for w in tokens:
+            if w in self.first_person_pronouns:
+                return 1
+        return 0
