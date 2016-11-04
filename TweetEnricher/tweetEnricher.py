@@ -165,7 +165,7 @@ class TweetEnricher:
         :return: 1 if present, 0 otherwise; 1 if present in the beginning, 0 oherwise
         '''
         for index, term in enumerate(tokens):
-            if re.match("#\w*", term):
+            if re.match("#.*", term):
                 if 2 * index < len(tokens):
                     return 1,1
                 else:
@@ -191,7 +191,7 @@ class TweetEnricher:
         :return: 1 if present, 0 otherwise; 1 if present in the beginning, 0 oherwise
         '''
         for index, term in enumerate(tokens):
-            if re.match("@\w*", term):
+            if re.match("@.*", term):
                 if 2 * index < len(tokens):
                     return 1,1
                 else:
@@ -300,87 +300,87 @@ class TweetEnricher:
         feature_names = self.vectorizer.get_feature_names()
         print("Size of n grams =  %d " % len(feature_names))
 
-        #Remove n-grams with #,@,RT, only numbers
-        for i in feature_names:
-            if re.findall('#.*', i):
-                feature_names.remove(i)
-            elif re.findall('[\d]+', i):
-                feature_names.remove(i)
-            elif re.findall('@.*', i):
-                feature_names.remove(i)
-            elif re.findall('RT.*', i):
-                feature_names.remove(i)
-            elif re.findall('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+',i):
-                feature_names.remove(i)
+        # #Remove n-grams with #,@,RT, only numbers
+        # for i in feature_names:
+        #     if re.findall('#.*', i):
+        #         feature_names.remove(i)
+        #     elif re.findall('[\d]+', i):
+        #         feature_names.remove(i)
+        #     elif re.findall('@.*', i):
+        #         feature_names.remove(i)
+        #     elif re.findall('RT.*', i):
+        #         feature_names.remove(i)
+        #     elif re.findall('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+',i):
+        #         feature_names.remove(i)
+        #
+        # # Remove potential Brexit keywords
+        # for i in feature_names:
+        #     for j in i.split():
+        #         if j in self.brexit_keywords:
+        #             feature_names.remove(i)
+        #             break
+        #
+        #
+        # for term in nltk.pos_tag(feature_names):
+        #     # Remove proper nouns
+        #     if term[1] == "NNP" or term[1] == "NNPS" or term[1] == "NN":
+        #         feature_names.remove(term[0])
+        #
+        #
+        # #Find entropy of each n-gram
+        # entropy = {}
+        # for item in feature_names:
+        #     entropy[item] = 0
+        # total = len(SA_tagged_collection)
+        # occurrences = {}
+        # tagged_tweets= {}
+        # for gram in SA_tagged_collection:
+        #     if SA_tagged_collection.get(gram)[1] != '':
+        #         tagged_tweets[gram] = SA_tagged_collection.get(gram)
+        #
+        # for item in feature_names:
+        #     p = re.compile(re.escape(item))
+        #     for gram in tagged_tweets:
+        #         occurrences[tagged_tweets.get(gram)[1]] = 0
+        #     for gram in tagged_tweets:
+        #         times_in_tweet = len(re.findall(p, str(tagged_tweets.get(gram)[0])))
+        #         occurrences[tagged_tweets.get(gram)[1]] += times_in_tweet
+        #     for gram in tagged_tweets:
+        #         entropy[item] += -(occurrences[tagged_tweets.get(gram)[1]]/total)*math.log((occurrences[tagged_tweets.get(gram)[1]]+1)/total)
+        #
+        # # n-gram entropies
+        # with open('../Data/test/entropy_raw.csv', 'w+', newline='', encoding='utf8') as out_file:
+        #     writer = csv.writer(out_file)
+        #     for w in sorted(entropy, key=entropy.get):
+        #         writer.writerow([w, entropy.get(w)])
 
-        # Remove potential Brexit keywords
-        for i in feature_names:
-            for j in i.split():
-                if j in self.brexit_keywords:
-                    feature_names.remove(i)
-                    break
-
-
-        for term in nltk.pos_tag(feature_names):
-            # Remove proper nouns
-            if term[1] == "NNP" or term[1] == "NNPS" or term[1] == "NN":
-                feature_names.remove(term[0])
-
-
-        #Find entropy of each n-gram
-        entropy = {}
-        for item in feature_names:
-            entropy[item] = 0
-        total = len(SA_tagged_collection)
-        occurrences = {}
-        tagged_tweets= {}
-        for gram in SA_tagged_collection:
-            if SA_tagged_collection.get(gram)[1] != '':
-                tagged_tweets[gram] = SA_tagged_collection.get(gram)
-
-        for item in feature_names:
-            p = re.compile(re.escape(item))
-            for gram in tagged_tweets:
-                occurrences[tagged_tweets.get(gram)[1]] = 0
-            for gram in tagged_tweets:
-                times_in_tweet = len(re.findall(p, str(tagged_tweets.get(gram)[0])))
-                occurrences[tagged_tweets.get(gram)[1]] += times_in_tweet
-            for gram in tagged_tweets:
-                entropy[item] += -(occurrences[tagged_tweets.get(gram)[1]]/total)*math.log((occurrences[tagged_tweets.get(gram)[1]]+1)/total)
-
-        # n-gram entropies
-        with open('../Data/test/entropy_raw.csv', 'w+', newline='', encoding='utf8') as out_file:
-            writer = csv.writer(out_file)
-            for w in sorted(entropy, key=entropy.get):
-                writer.writerow([w, entropy.get(w)])
-
-        # # USING good n-grams generated before by current commented sections entropy threshold 0.2
-        # feature_names = [line.rstrip('\n') for line in open('../Data/test/entropy_lt_0.5_counts', encoding='utf8')]
+        # USING good n-grams generated before by current commented sections entropy threshold 0.2
+        feature_names = [line.rstrip('\n') for line in open('../Data/Lists/N_grams_final.csv', encoding='utf8')]
 
         term_freqs = X.sum(axis=0).A1
         self.n_gram_count_matrix = dict(zip(feature_names, term_freqs))
 
-        for w in self.n_gram_count_matrix.copy():
-          #keep only those n-grams that have a frequency > 5
-            if(self.n_gram_count_matrix.get(w) < 5):
-                self.n_gram_count_matrix.pop(w)
+        # for w in self.n_gram_count_matrix.copy():
+        #   #keep only those n-grams that have a frequency > 5
+        #     if(self.n_gram_count_matrix.get(w) < 5):
+        #         self.n_gram_count_matrix.pop(w)
 
-        print("Reduced Size of n grams = %d " % len(entropy))
-
-        # Normalize by dividing by log of number of occurences on n-gram in collection
-        for gram in entropy.copy():
-            if gram in self.n_gram_count_matrix.keys():
-                entropy[gram] = entropy[gram]/(math.log(self.n_gram_count_matrix.get(gram)))
-            else:
-                entropy.pop(gram)
-
-        print("Reduced Size of n grams = %d " % len(entropy))
-
-        # n-gram entropies
-        with open('../Data/test/entropy.csv', 'w+', newline='', encoding='utf8') as out_file:
-            writer = csv.writer(out_file)
-            for w in sorted(entropy, key=entropy.get):
-                writer.writerow([w, entropy.get(w)])
+        # print("Reduced Size of n grams = %d " % len(entropy))
+        #
+        # # Normalize by dividing by log of number of occurences on n-gram in collection
+        # for gram in entropy.copy():
+        #     if gram in self.n_gram_count_matrix.keys():
+        #         entropy[gram] = entropy[gram]/(math.log(self.n_gram_count_matrix.get(gram)))
+        #     else:
+        #         entropy.pop(gram)
+        #
+        # print("Reduced Size of n grams = %d " % len(entropy))
+        #
+        # # n-gram entropies
+        # with open('../Data/test/entropy.csv', 'w+', newline='', encoding='utf8') as out_file:
+        #     writer = csv.writer(out_file)
+        #     for w in sorted(entropy, key=entropy.get):
+        #         writer.writerow([w, entropy.get(w)])
 
         return self.tweetFeatures()
 
@@ -467,8 +467,19 @@ class TweetEnricher:
         basic_row.append(pos_presence)
         basic_row.append(neg_presence)
 
-        #binary features with n grams
+        # binary features with n grams
         binary_ngrams_row = basic_row
+
+        #sentiment feature
+        pos_per, neg_per = self.sentiment(tweet)
+        tweet_sentiment = -1
+        if pos_per > neg_per:
+            tweet_sentiment = 1
+        elif pos_per < neg_per:
+            tweet_sentiment = 0
+
+        row.append(tweet_sentiment)
+        basic_row.append(tweet_sentiment)
 
         # n grams from tweet
         n_gram_feature_dict = self.collectNGramFeatures(tweet)
@@ -522,6 +533,7 @@ class TweetEnricher:
         negative_percentage = negative_count / len(tokens)
 
         return positive_percentage, negative_percentage
+
 
     def hasFirstPersonPronouns(self, tokens):
         for w in tokens:
