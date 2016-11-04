@@ -23,7 +23,10 @@ with open(READ_TESTSET, encoding='utf-8') as csv_file:
     for i, row in enumerate(reader1):
         init_tweets.append(tb(row[0]))
 
-print(init_tweets[1].tags)
+# Test data
+for i in range(10):
+    print(init_tweets[i].tags)
+
 # Print status report
 print("Filter Tweets")
 index_cluster = 0
@@ -102,6 +105,11 @@ while max_val > threshold and n_clusters > 1:
     n_clusters = len(clusters)
     max_val = simMatrix.max()
 
+# Flatten the list within lists
+for i in range(n_clusters):
+    indexes = re.flatten(clusters[i][1], [])
+    clusters[i] = indexes
+
 print(clusters)
 # Print status
 print("Tweets Clustered")
@@ -114,18 +122,18 @@ for i in range(n_clusters):
     max_sim = 0
     # Keep track of the index of the tweet that has the maximum similarity
     i_tweet = 0
-    for j in range(n_tweets):
-        sim = re.computeSimilarity(c_tfidf[i], t_tfidf[j])
+    for j in range(len(clusters[i])):
+        sim = re.computeSimilarity(c_tfidf[i], t_tfidf[clusters[i][j]])
         if sim > max_sim:
             max_sim = sim
-            i_tweet = j
+            i_tweet = clusters[i][j]
     centers.append(i_tweet)
 
 # Output the set of clusters
-# TODO: output array of indexes of tweets that belong to each cluster
+# TODO: is output correct for next component?
 with open(WRITE_FILENAME, 'w', encoding='utf-8', newline='') as csv_file:
     writer = csv.writer(csv_file, delimiter='\t')
     for i in range(n_clusters):
-        writer.writerow([str(clusters[i]), centers[i]])
+        writer.writerow(str(clusters[i]) + " ," + str(centers[i]))
 
 print("Finished with {} clusters".format(n_clusters))

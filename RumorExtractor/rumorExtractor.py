@@ -76,3 +76,19 @@ class RumorExtractor:
             clusters.remove(cluster2)
             clusters.append(merge)
         return clusters
+
+    def flatten(self, clusters, flatlist):
+        """
+        Method that flattens a list within lists
+        :param clusters: the list to be flattened
+        :param flatlist: the list where the elements from clusters need to append to
+        :return: list flatlist that contains the elements from clusters
+        """
+        if type(clusters) == int:
+            flatlist.append(clusters)
+        elif len(clusters) == 1:
+            flatlist.append(clusters[0])
+        else:
+            for i in range(len(clusters)):
+                self.flatten(clusters[i], flatlist)
+        return flatlist
