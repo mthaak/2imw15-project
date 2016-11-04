@@ -224,3 +224,4 @@ f1	precision	recall	accuracy	tp	fp	fn	tn	classifier	algorithm	metric	weights
 0.328358208955	0.392857142857	0.282051282051	0.55	44	17	28	11	KNeighborsClassifier	brute	braycurtis	distance
 0.202898550725	0.233333333333	0.179487179487	0.45	38	23	32	7	KNeighborsClassifier	kd_tree	uniform
 0.327868852459	0.454545454545	0.25641025641	0.59	49	12	29	10	KNeighborsClassifier	kd_tree	distance
+
