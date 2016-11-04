@@ -165,7 +165,7 @@ class TweetEnricher:
         :return: 1 if present, 0 otherwise; 1 if present in the beginning, 0 oherwise
         '''
         for index, term in enumerate(tokens):
-            if re.match("#\w*", term):
+            if re.match("#.*", term):
                 if 2 * index < len(tokens):
                     return 1,1
                 else:
@@ -191,7 +191,7 @@ class TweetEnricher:
         :return: 1 if present, 0 otherwise; 1 if present in the beginning, 0 oherwise
         '''
         for index, term in enumerate(tokens):
-            if re.match("@\w*", term):
+            if re.match("@.*", term):
                 if 2 * index < len(tokens):
                     return 1,1
                 else:

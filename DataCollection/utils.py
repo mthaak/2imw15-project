@@ -2,8 +2,8 @@ import pandas as pd
 import os
 import ast
 import csv
+from datetime import date, timedelta
 from calendar import monthrange
-from datetime import timedelta
 import nltk
 import re
 import string
@@ -32,15 +32,8 @@ def days_delta(from_date, to_date):
     :param to_date:
     :return:
     """
-    delta = 0
-    while True:
-        mdays = monthrange(from_date.year, from_date.month)[1]
-        from_date += timedelta(days=mdays)
-        if from_date <= to_date:
-            delta += mdays
-        else:
-            break
-    return delta
+    delta = to_date - from_date
+    return delta.days
 
 
 def month_delta(from_date, to_date):
@@ -50,6 +43,7 @@ def month_delta(from_date, to_date):
     :param to_date:
     :return:
     """
+    assert isinstance(from_date, date) and isinstance(to_date, date)
     delta = 0
     while True:
         mdays = monthrange(from_date.year, from_date.month)[1]

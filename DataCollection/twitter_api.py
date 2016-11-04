@@ -119,13 +119,15 @@ def cursor_iterator(cursor, resource, path):
             else:
                 handle_rate_limit(resource, path)
         except tweepy.error.TweepError as e:
-            print(e)
+            print(e.response)
+            print(e.api_code)
             err_count += 1
             if err_count > 1:
                 break
-            elif isinstance(e.message, list) and len(e.message) > 0 \
-                    and 'code' in e.message[0] \
-                    and e.message[0]['code'] == 429:
+            elif e.api_code == 429:
+                # elif isinstance(e.message, list) and len(e.message) > 0 \
+                #         and 'code' in e.message[0] \
+                #         and e.message[0]['code'] == 429:
                 handle_rate_limit(resource, path)
         except Exception as e:
             print(e)
@@ -279,8 +281,8 @@ def check_query(s):
 
 def search_tweets(qry, nr_of_tweets=-1, since_id=None, max_id=None, save_to_csv=True):
     assert isinstance(qry, str)
-    assert isinstance(max_id, (int, None))
-    assert isinstance(since_id, (int, None))
+    assert isinstance(max_id, int) or max_id is None
+    assert isinstance(since_id, int) or since_id is None
     assert isinstance(nr_of_tweets, int) and nr_of_tweets >= -1
     assert isinstance(save_to_csv, bool)
 
@@ -358,6 +360,10 @@ if __name__ == "__main__":
 
     # Get friends
     # get_friends_of_users(users)
+
+    # Remaining calls
+    # resource, path = 'statuses', '/statuses/user_timeline'
+    # remaining_calls(resource, path)
 
     # Search tweets on keywords
     # since_id = most recent tweet id
