@@ -5,6 +5,8 @@ import csv
 from calendar import monthrange
 from datetime import timedelta
 import nltk
+import re
+import string
 
 
 def read_csv_ignore_comments(file_path, sep="\t", index_col=None, comment_literal='#'):
@@ -68,7 +70,7 @@ def filter_by_keywords(df, list_of_keywords):
     return df[df.keywords.apply(ast.literal_eval).apply(lambda x: any(k in x for k in list_of_keywords))]
 
 
-def print_progress(index, length):
+def print_progress_bar(index, length):
     # from time import sleep
     import sys, math
     sys.stdout.write('\r')
@@ -83,15 +85,45 @@ NON_ENGLISH_STOPWORDS = set(nltk.corpus.stopwords.words()) - ENGLISH_STOPWORDS
 STOPWORDS_DICT = {lang: set(nltk.corpus.stopwords.words(lang)) for lang in nltk.corpus.stopwords.fileids()}
 
 
+def clean_text(text, log=False):
+    assert isinstance(text, str)
+    text = text.lower()
+    text = re.sub(r'(.)\1{2,}', r'\1\1', text)
+    if log: print(text)
+    text = re.sub('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '', text)
+    if log: print(text)
+    text = re.sub("@\w*", "", text)
+    if log: print(text)
+    text = re.sub("#\w*", "", text)
+    if log: print(text)
+    text = re.sub('[^\x00-\x7F]', "", text)
+    if log: print(text)
+    return text
+
+
 def get_language(text):
-    words = set(nltk.wordpunct_tokenize(text.lower()))
+    assert isinstance(text, str)
+    text = clean_text(text)
+    words = set(nltk.wordpunct_tokenize(text))
+    words = set(w for w in words if len(w) > 1 and w not in list(string.punctuation)
+                + ["…", "...", "..", ")", "(", "-->", "->", ">>", "#", "rt", "@"])
     return max(((lang, len(words & stopwords)) for lang, stopwords in STOPWORDS_DICT.items()), key=lambda x: x[1])[0]
 
 
-def is_english(text):
-    text = text.lower()
+def is_english(text, log=False):
+    assert isinstance(text, str)
+    text = clean_text(text, log)
     words = set(nltk.wordpunct_tokenize(text))
-    return len(words & ENGLISH_STOPWORDS) > len(words & NON_ENGLISH_STOPWORDS)
+    # words = set(text.split())
+    words = set(w for w in words if len(w) > 1 and w not in list(string.punctuation)
+                + ["…", "...", "..", ")", "(", "-->", "->", ">>", "#", "rt", "@"])
+    if log: print(words)
+    return len(words & ENGLISH_STOPWORDS) >= len(words & NON_ENGLISH_STOPWORDS)
+
+
+def remove_duplicated_spaces(text):
+    assert isinstance(text, str)
+    return " ".join(text.split())
 
 
 if __name__ == "__main__":
@@ -109,6 +141,22 @@ if __name__ == "__main__":
     # print(filter_by_keywords(df, ['people']))
 
     df = read_csv_ignore_comments(os.path.join('results', 'search_20161102_211623_tweets.csv'), index_col='tweet_id')
+
+    # Fixing missing reply_to_id's
     # df['is_reply'] = df['is_reply'].apply(lambda x: 1 if x else 0)
     # df['reply_to_id'] = df.apply(lambda x: -1 if x['is_reply'] == 0 else x['reply_to_id'], axis=1).astype('int64')
-    # df.to_csv(os.path.join('results', 'search_20161102_132334_tweets.csv'), sep='\t', encoding='utf-8')
+    # df.to_csv(os.path.join('results', 'search_20161102_211623_tweets.csv'), sep='\t', encoding='utf-8')
+
+    # Filtering out non-english tweets
+    # df['is_english'] = df['text'].apply(is_english)
+    # print(df.loc[df['is_english']==True, 'text'].head(10))
+    # print('======================================')
+    # print(df.loc[df['is_english']==False, 'text'])
+    # print('======================================')
+    # print(df['is_english'].value_counts())
+    # print('======================================')
+    # is_english("See also Brexit. https://t.co/o99kG0hDfg", True)
+    # print('======================================')
+
+    # Fixing people without screen_names
+    # print(df['screen_name'].apply(lambda x: len(str(x)) == 0).value_counts())

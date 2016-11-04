@@ -2,6 +2,7 @@ import os
 from TweetEnricher.tweetEnricher import TweetEnricher
 import numpy as np
 import pandas as pd
+from progressbar import ProgressBar
 import math
 from dateutil import parser
 import pickle
@@ -28,6 +29,7 @@ def extract_features(file_name):
 
     # Load features
     features = df['tweet_id'].to_frame()
+    print('...extracting credibility, influence, role')
     features['credibility'] = df['verified']
     features['influence'] = df['#followers']
     features['role'] = df.apply(lambda x: x['#followers'] / x['#followings'])
@@ -39,7 +41,9 @@ def extract_features(file_name):
     # to prevent recomputing
     users = {}
 
-    for index, row in df.iterrows():
+    print('...extracting controversiality, originality, engagement')
+    bar = ProgressBar()
+    for index, row in bar(df.iterrows()):
         if row['screen_name'] not in users:
             col, tweets = get_tweets_of_user(row['screen_name'], nr_of_tweets=1000, save_to_csv=False)
             tweets = pd.DataFrame(tweets, columns=col).set_index('tweet_id')
@@ -74,27 +78,34 @@ def extract_features(file_name):
             df.loc[index, 'originality'] = users[row['screen_name']][1]
             df.loc[index, 'engagement'] = users[row['screen_name']][2]
 
+    print('...extracting hasVulgarWords, hasEmoticons, isInterrogative')
     features['hasVulgarWords'] = tokens.apply(tweet_enricher.hasVulgarWords)
     features['hasEmoticons'] = tokens.apply(tweet_enricher.hasEmoticons)
     features['isInterrogative'] = tokens.apply(tweet_enricher.isInterrogative)
+
+    print('...extracting isExclamatory, hasAbbreviations, hasTwitterJargons')
     features['isExclamatory'] = tokens.apply(tweet_enricher.isExclamatory)
     features['hasAbbreviations'] = tokens.apply(tweet_enricher.hasAbbreviations)
     features['hasTwitterJargons'] = tokens.apply(tweet_enricher.hasTwitterJargons)
+
+    print('...extracting hasFPP, hasSource, hasSpeechActVerbs')
     features['hasFPP'] = tokens.apply(tweet_enricher.hasFirstPersonPronouns)
     features['hasSource'] = df['urls'].apply(lambda x: 1 if len(x) > 0 else 0)
-
     hasSpeechActVerbs = tokens.apply(tweet_enricher.hasSpeechActVerbs)
     for key in tweet_enricher.speech_act_verbs:
         features[key] = hasSpeechActVerbs.apply(lambda x: x[key])
 
+    print('...extracting has#, #Position')
     has_hash = tokens.apply(tweet_enricher.hasHash)
     features['has#'] = has_hash.apply(lambda x: x[0])
     features['#Position'] = has_hash.apply(lambda x: x[1])
 
+    print('...extracting hasRT, RTPosition')
     has_RT = tokens.apply(tweet_enricher.hasRT)
     features['hasRT'] = has_RT.apply(lambda x: x[0])
     features['RTPosition'] = has_RT.apply(lambda x: x[1])
 
+    print('...extracting has@, @Position, isRumor')
     has_a_tag = tokens.apply(tweet_enricher.hasATag)
     features['has@'] = has_a_tag.apply(lambda x: x[0])
     features['@Position'] = has_a_tag.apply(lambda x: x[1])
@@ -110,6 +121,8 @@ def extract_features(file_name):
 
     # features.to_csv(os.path.join('results', os.path.splitext(file_name)[0] + '_features.csv'))
     pickle.dump(features, open(os.path.join('results', os.path.splitext(file_name)[0] + '_features.p'), "wb"))
+    print('Done!')
+
     return features
 
 
