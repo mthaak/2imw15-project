@@ -11,7 +11,7 @@ import pickle
 
 tweets = []
 # Read tweet data and labels from file
-with open("../Data/tweets.csv", encoding='utf-8') as csv_file:
+with open("../Data/tweets_brexit.csv", encoding='utf-8') as csv_file:
     reader = csv.reader(csv_file, delimiter='\t')
     for i, row in enumerate(reader):
         tweets.append(row)
@@ -26,7 +26,7 @@ X = CountVectorizer().fit_transform(tweets[:, 3])
 X_sparse = scipy.sparse.csr_matrix(X)
 
 # Pickle to file
-with open("../Data/tweets_X.pickle", "wb") as file:
+with open("../Data/tweets_brexit_X.pickle", "wb") as file:
     pickle.dump(X_sparse, file)
 
 print("File 'tweets_X.pickle' successfully created.")

@@ -165,7 +165,7 @@ class TweetEnricher:
         :return: 1 if present, 0 otherwise; 1 if present in the beginning, 0 oherwise
         '''
         for index, term in enumerate(tokens):
-            if re.match("#.*", term):
+            if re.match("#\w*", term):
                 if 2 * index < len(tokens):
                     return 1,1
                 else:
@@ -191,7 +191,7 @@ class TweetEnricher:
         :return: 1 if present, 0 otherwise; 1 if present in the beginning, 0 oherwise
         '''
         for index, term in enumerate(tokens):
-            if re.match("@.*", term):
+            if re.match("@\w*", term):
                 if 2 * index < len(tokens):
                     return 1,1
                 else:
@@ -407,53 +407,97 @@ class TweetEnricher:
         Features added to a row of data.
         :return: Returns a row with features added
         """
+
+        # FEATURES WITH LOW IG COMMENTED #
+
         row=[]
+        basic_row = []
+        binary_ngrams_row= []
         #tokenize tweet
         tokens = self.tokenize(tweet)
         # remove stop words
         tokens = self.removeStopWords(tokens)
         # add  Vulgar words feature
         row.append(self.hasVulgarWords(tokens))
+        binary_ngrams_row.append(self.hasVulgarWords(tokens))
+        basic_row.append(self.hasVulgarWords(tokens))
         # add Emoticons feature
-        row.append(self.hasEmoticons(tokens))
+        # row.append(self.hasEmoticons(tokens))
+        # basic_row.append(self.hasEmoticons(tokens))
+        # binary_ngrams_row.append(self.hasEmoticons(tokens))
         # add Interrogation feature
         row.append(self.isInterrogative(tokens))
+        binary_ngrams_row.append(self.isInterrogative(tokens))
+        basic_row.append(self.isInterrogative(tokens))
         # add Exclamation feature
         row.append((self.isExclamatory(tokens)))
+        binary_ngrams_row.append((self.isExclamatory(tokens)))
+        basic_row.append((self.isExclamatory(tokens)))
         # add Abbreviations feature
-        row.append(self.hasAbbreviations(tokens))
+        # row.append(self.hasAbbreviations(tokens))
+        # basic_row.append(self.hasAbbreviations(tokens))
+        # binary_ngrams_row.append(self.hasAbbreviations(tokens))
         # add twitter jargons feature
-        row.append(self.hasTwitterJargons(tokens))
+        # row.append(self.hasTwitterJargons(tokens))
+        # basic_row.append(self.hasTwitterJargons(tokens))
+        binary_ngrams_row.append(self.hasTwitterJargons(tokens))
         # add Twiiter specific characters' features- presence and position
         presence, position = self.hasHash(tokens)
         row.append(presence)
         row.append(position)
 
-        presence, position = self.hasATag(tokens)
-        row.append(presence)
-        row.append(position)
+        basic_row.append(presence)
+        basic_row.append(position)
 
-        presence, position = self.hasRT(tokens)
-        row.append(presence)
-        row.append(position)
+        binary_ngrams_row.append(presence)
+        binary_ngrams_row.append(position)
+
+        # presence, position = self.hasATag(tokens)
+        # row.append(presence)
+        # row.append(position)
+        #
+        # basic_row.append(presence)
+        # basic_row.append(position)
+        #
+        # binary_ngrams_row.append(presence)
+        # binary_ngrams_row.append(position)
+        #
+        # presence, position = self.hasRT(tokens)
+        # row.append(presence)
+        # row.append(position)
+        #
+        # basic_row.append(presence)
+        # basic_row.append(position)
+        #
+        # binary_ngrams_row.append(presence)
+        # binary_ngrams_row.append(position)
 
         # add URL presence feature
         row.append(self.hasALink(tokens))
+        basic_row.append(self.hasALink(tokens))
+        binary_ngrams_row.append(self.hasALink(tokens))
         #add speech act verbs features
         sac_feature_dict = self.hasSpeechActVerbs(tokens)
         for verb in self.speech_act_verbs:
               row.append(sac_feature_dict.get(verb))
+              basic_row.append(sac_feature_dict.get(verb))
+              binary_ngrams_row.append(sac_feature_dict.get(verb))
 
         #more than 5 numbers in tweet
-        row.append(self.hasManyNumbers(tokens))
-
-        #presence of non-ascii characters
-        row.append(self.hasManyNonAscii(tokens))
+        # row.append(self.hasManyNumbers(tokens))
+        # basic_row.append(self.hasManyNumbers(tokens))
+        # binary_ngrams_row.append(self.hasManyNumbers(tokens))
+        #
+        # #presence of non-ascii characters
+        # row.append(self.hasManyNonAscii(tokens))
+        # basic_row.append(self.hasManyNonAscii(tokens))
+        # binary_ngrams_row.append(self.hasManyNonAscii(tokens))
 
         #presence of links to trusted domains
-        row.append(self.hasLinksToReputedDomains(urls))
+        # row.append(self.hasLinksToReputedDomains(urls))
+        # binary_ngrams_row.append(self.hasLinksToReputedDomains(urls))
+        # basic_row.append(self.hasLinksToReputedDomains(urls))
 
-        basic_row = row
 
         # add positive and negative opinion feature
         pos_count, pos_presence = self.hasNegativeOpinions(tokens)
@@ -461,14 +505,14 @@ class TweetEnricher:
 
         # counts
         row.append(pos_count)
-        row.append(neg_count)
+        #row.append(neg_count)
 
         # boolean- positive/negative opinion feature
         basic_row.append(pos_presence)
-        basic_row.append(neg_presence)
+        #basic_row.append(neg_presence)
 
-        # binary features with n grams
-        binary_ngrams_row = basic_row
+        binary_ngrams_row.append(pos_presence)
+        #binary_ngrams_row.append(neg_presence)
 
         #sentiment feature
         pos_per, neg_per = self.sentiment(tweet)
@@ -478,8 +522,8 @@ class TweetEnricher:
         elif pos_per < neg_per:
             tweet_sentiment = 0
 
-        row.append(tweet_sentiment)
-        basic_row.append(tweet_sentiment)
+        # row.append(tweet_sentiment)
+        # basic_row.append(tweet_sentiment)
 
         # n grams from tweet
         n_gram_feature_dict = self.collectNGramFeatures(tweet)
