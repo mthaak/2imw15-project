@@ -75,9 +75,7 @@ while max_val > threshold and n_clusters > 1:
 
     # Compute the TF-IDF vector for each of the tweets
     for i, cluster in enumerate(clusters):
-        #print("Words in document {}".format(i + 1))
         vector = {word: re.tfidf(word, cluster[0], clusters) for word in cluster[0].words}
-        # sorted_words = sorted(vector.items(), key=lambda x: x[1], reverse=True)
         tfidfs.append(vector)
         # Store the TF-IDF scores of the initial filtered tweets and of the TF-IDF scores of the final clusters
         if clustering == 1:
@@ -129,7 +127,6 @@ for i in range(n_clusters):
     centers.append(i_tweet)
 
 # Output the set of clusters
-# TODO: is output correct for next component?
 with open(WRITE_FILENAME, 'w', encoding='utf-8', newline='') as csv_file:
     writer = csv.writer(csv_file, delimiter='\t')
     for i in range(n_clusters):
