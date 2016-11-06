@@ -578,7 +578,6 @@ class TweetEnricher:
 
         return positive_percentage, negative_percentage
 
-
     def hasFirstPersonPronouns(self, tokens):
         for w in tokens:
             if w in self.first_person_pronouns:

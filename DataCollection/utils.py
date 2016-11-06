@@ -92,6 +92,7 @@ def clean_text(text, log=False):
     if log: print(text)
     text = re.sub('[^\x00-\x7F]', "", text)
     if log: print(text)
+    text = text.strip()
     return text
 
 
@@ -120,6 +121,12 @@ def remove_duplicated_spaces(text):
     return " ".join(text.split())
 
 
+def chunks(l, n):
+    """Yield successive n-sized chunks from l."""
+    for i in range(0, len(l), n):
+        yield l[i:i + n]
+
+
 if __name__ == "__main__":
     # users = ['vote_leave', 'BorisJohnson', 'David_Cameron',
     #          'Nigel_Farage', 'michaelgove', 'George_Osborne']
@@ -136,12 +143,12 @@ if __name__ == "__main__":
 
     df = read_csv_ignore_comments(os.path.join('results', 'search_20161102_211623_tweets.csv'), index_col='tweet_id')
 
-    # Fixing missing reply_to_id's
+    # FIXING MISSING reply_to_id's
     # df['is_reply'] = df['is_reply'].apply(lambda x: 1 if x else 0)
     # df['reply_to_id'] = df.apply(lambda x: -1 if x['is_reply'] == 0 else x['reply_to_id'], axis=1).astype('int64')
     # df.to_csv(os.path.join('results', 'search_20161102_211623_tweets.csv'), sep='\t', encoding='utf-8')
 
-    # Filtering out non-english tweets
+    # FILTERING OUT NON-ENGLISH TWEETS
     # df['is_english'] = df['text'].apply(is_english)
     # print(df.loc[df['is_english']==True, 'text'].head(10))
     # print('======================================')
@@ -152,5 +159,35 @@ if __name__ == "__main__":
     # is_english("See also Brexit. https://t.co/o99kG0hDfg", True)
     # print('======================================')
 
-    # Fixing people without screen_names
-    # print(df['screen_name'].apply(lambda x: len(str(x)) == 0).value_counts())
+    # FIX SCREEN NAMES OF TWEETS
+    # from DataCollection.twitter_api import lookup_users
+    # user_ids = df['user_id'].tolist()
+    # features, results = lookup_users(user_ids=user_ids, save_to_csv=True)
+    # results = dict((x[0], x[1]) for x in results)
+    # # results = read_csv_ignore_comments(os.path.join('results', 'users_lookup_20161104_210746.csv'), index_col='user_id')
+    # results = results.groupby(results.index).first()
+    # print(results.head(5))
+    # for i, row in df.iterrows():
+    #     user_id = row['user_id']
+    #     df.loc[i, 'screen_name'] = results.loc[user_id, 'screen_name'] if user_id in results.index.values else '$unk'
+    # print(df.head(10))
+    # df.to_csv(os.path.join('results', 'search_20161102_211623_tweets1.csv'), sep='\t', encoding='utf-8')
+
+    # FIX in_reply_to_user_id/tweet_id FROM -1 TO 0
+    # df = df.rename(columns={'reply_to_id': 'in_reply_to_user_id'})
+    # df['in_reply_to_user_id'] = df['in_reply_to_user_id'].apply(lambda x: 0 if x < 0 else x)
+    # df.to_csv(os.path.join('results', 'search_20161102_211623_tweets.csv'), sep='\t', encoding='utf-8')
+
+    # 794619950988042240
+    import pickle
+
+    x = pickle.load(open('temp.p', 'rb'))
+    print(x['reply_to_tweet_id'].value_counts())
+    y = x.loc[x['reply_to_tweet_id'] == 1]
+    y = y['text'].apply(lambda x: x)
+    print(y)
+
+    # change $unk to NaN FROM -1 TO 0
+    # df = df.rename(columns={'reply_to_id': 'in_reply_to_user_id'})
+    # df['in_reply_to_user_id'] = df['in_reply_to_user_id'].apply(lambda x: 0 if x < 0 else x)
+    # df.to_csv(os.path.join('results', 'search_20161102_211623_tweets.csv'), sep='\t', encoding='utf-8')
