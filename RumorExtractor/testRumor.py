@@ -7,64 +7,37 @@ nltk.download('punkt')
 import numpy as np
 import csv
 
-READ_TESTSET= "../Data/test.csv"
 READ_FILENAME= "../Data/tweets_20161024_111847_assertionfiltered.csv"
 WRITE_FILENAME="../Data/tweets_20161024_111847_clustered.csv"
+
 # Data of clusters
 clusters = []
-# Data of output tweets
-init_tweets = []
 
 # Import csv file with tweets
 re = RumorExtractor()
 with open(READ_FILENAME, encoding='utf-8') as csv_file:
     reader1 = csv.reader(csv_file, delimiter='\t')
     for i, row in enumerate(reader1):
-        init_tweets.append(tb(row[0]))
+        clusters.append([tb(str(row)), i])
 
 # Print status report
-print("Filter Tweets")
-# Keep track of the indexes of the clusters
-index_cluster = 0
-# The tags of the words that are not filtered out in the tweets
-tags = ['VB', 'VBD', 'VBG', 'VBN', 'VBP', 'VBZ', 'NN', 'NNS', 'NNP', 'NNPS', 'JJ']
-# The words that do need to be filtered out
-filter_out = ['@', 'RT', '[', ']', 'http', 'https', 'urls']
-
-# Tweets are filtered to only contain verbs and nouns
-for tweet in init_tweets:
-    filtered = ""
-    for i in range(len(tweet.words)):
-        for j in range(len(tags)):
-            try:
-                if tweet.tags[i][1] == tags[j] and not (tweet.tags[i][0] in filter_out):
-                    filtered = filtered + tweet.tags[i][0] + " "
-            except:
-                print("Error")
-    # Clusters is represented as a tuple (i, j) where i is the string of merged tweets and j their indexes
-    clusters.append([tb(filtered), [index_cluster]])
-    index_cluster += 1
-
-# Print status report
-print("Tweets filtered")
+print("File read")
 print(clusters)
 # TF-IDF scores of the filtered tweets
 t_tfidf = []
 # TF-IDF scores of the final clusters
 c_tfidf = []
 # Keep track of a threshold
-threshold = 0.8
+threshold = 0.045
 # keep track of the maximum value in the similarity matrix. Init 1.0
 max_val = 1.0
 # Keep track of the number of times this while loop is entered
 clustering = 0
 # Keep track of the number of clusters
 n_clusters = len(clusters)
-# Keep track of the number of tweets
-n_tweets = len(init_tweets)
-
 # Print status
 print("Cluster tweets")
+
 # Keep clustering until threshold is reached or when there is only one cluster left.
 while max_val > threshold and n_clusters > 1:
     clustering += 1
@@ -90,13 +63,15 @@ while max_val > threshold and n_clusters > 1:
     # Convert the similarity matrix into a numpy array
     simMatrix = np.array(simMatrix)
     # Compute the maximum value in the similarity matrix which is inside indexes 0 and 1 of index of argmax
-    i1 = np.unravel_index(simMatrix.argmax(), simMatrix.shape)[0] - 1
-    i2 = np.unravel_index(simMatrix.argmax(), simMatrix.shape)[1] - 1
+    i1 = np.unravel_index(simMatrix.argmax(), simMatrix.shape)[0]
+    i2 = np.unravel_index(simMatrix.argmax(), simMatrix.shape)[1]
     # Merge the clusters with maximum similarity
     clusters = re.mergeClusters(clusters, clusters[i1], clusters[i2])
     # Update values
     n_clusters = len(clusters)
     max_val = simMatrix.max()
+    print(max_val)
+    print("There are still {} clusters".format(n_clusters))
 
 print(clusters)
 
