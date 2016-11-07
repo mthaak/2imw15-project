@@ -55,12 +55,16 @@ def extract_features(file_name):
             replies = pd.DataFrame(replies, columns=col).set_index('tweet_id')
             p_count, n_count = 0, 0
             for i, r in tweets.iterrows():
-                replies_to_i = replies[replies['reply_to_tweet_id'] == i]
+                i = int(i)
+                replies_to_i = replies.loc[replies['reply_to_tweet_id'] == i]
                 replies_to_i = replies_to_i['text'].apply(tweet_enricher.sentiment) \
                     .apply(lambda x: None if x[0] == x[1] else x[0] > x[1]).value_counts()
                 p_count += replies_to_i[True] if True in replies_to_i.index.values else 0
                 n_count += replies_to_i[False] if False in replies_to_i.index.values else 0
-            controversiality = math.pow(p_count + n_count, min(p_count / (n_count + 1), n_count / (p_count + 1)))
+            if p_count + n_count > 0:
+                controversiality = math.pow(p_count + n_count, min(p_count / (n_count + 1), n_count / (p_count + 1)))
+            else:
+                controversiality = 0
             df.loc[index, 'controversiality'] = controversiality
 
             # ORIGINALITY OF USER
@@ -147,7 +151,7 @@ def extract_features(file_name):
     features = features.set_index('tweet_id')
     print(features.head(2))
 
-    # features.to_csv(os.path.join('results', os.path.splitext(file_name)[0] + '_features.csv'))
+    features.to_csv(os.path.join('results', os.path.splitext(file_name)[0] + '_features.csv'))
     pickle.dump(features, open(os.path.join('results', os.path.splitext(file_name)[0] + '_features.p'), "wb"))
     print('Done!')
 

@@ -1,16 +1,19 @@
 f1	accuracy	tp	fp	fn	tn	classifier
-0.562180191092	0.39099789979	391	609	0	0	DummyClassifier
+0.562185478073	0.391	391	609	0	0	DummyClassifier
 f1	accuracy	tp	fp	fn	tn	classifier
-0.657537124083	0.752104910491	244	101	147	508	LogisticRegression
+0.663043478261	0.752	244	101	147	508	LogisticRegression
 f1	accuracy	tp	fp	fn	tn	classifier
-0.676915594174	0.74904490449	266	126	125	483	LinearDiscriminantAnalysis
+0.676240208877	0.752	259	116	132	493	LinearSVC
 f1	accuracy	tp	fp	fn	tn	classifier
-0.67291528763	0.752064906491	259	116	132	493	LinearSVC
+0.619756427605	0.719	229	119	162	490	BernoulliNB
 f1	accuracy	tp	fp	fn	tn	classifier
-0.617323363316	0.719163716372	229	119	162	490	BernoulliNB
-f1	accuracy	tp	fp	fn	tn	classifier
-0.67147921713	0.74600510051	263	126	128	483	KNeighborsClassifier
-f1	accuracy	tp	fp	fn	tn	classifier
-0.639234248861	0.724924692469	248	132	143	477	DecisionTreeClassifier
-f1	accuracy	tp	fp	fn	tn	classifier
-0.691672930645	0.763895789579	269	114	122	495	RandomForestClassifier
+0.675257731959	0.748	262	123	129	486	Pipeline
+f1	accuracy	tp	fp	fn	tn	classifier	metric	weights
+0.669230769231	0.742	261	128	130	481	KNeighborsClassifier	hamming	distance
+0.671052631579	0.75	255	114	136	495	KNeighborsClassifier	canberra	distance
+0.688775510204	0.756	270	123	121	486	KNeighborsClassifier	braycurtis	distance
+0.681233933162	0.752	265	122	126	487	KNeighborsClassifier	minkowski	distance
+f1	accuracy	tp	fp	fn	tn	classifier	max_features
+0.646596858639	0.73	247	126	144	483	DecisionTreeClassifier	
+f1	accuracy	tp	fp	fn	tn	classifier	n_estimators	max_features
+0.695763799743	0.763	271	117	120	492	RandomForestClassifier	100	
