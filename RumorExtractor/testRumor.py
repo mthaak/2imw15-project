@@ -40,6 +40,7 @@ for tweet in clusters:
                 print("Error")
     # Clusters is represented as a tuple (i, j) where i is the string of merged tweets and j their Tweet ID
     clusters.append([tb(filtered), [tweet[1]]])
+    clusters.remove(tweet)
 
 # Print status report
 print("Tweets filtered")
