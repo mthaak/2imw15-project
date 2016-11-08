@@ -47,6 +47,7 @@ class RumorExtractor:
         :param  doclist: The collection of documents or tweets.
         :return TF(term, doc) * IDF(term, doclist)
         """
+        # print('yolo')
         return (float)((float)(self.tf(term, doc)) * (float)(self.idf(term, doclist)))
 
     def computeSimilarity(self, vector1, vector2):

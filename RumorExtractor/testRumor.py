@@ -7,6 +7,7 @@ nltk.download('punkt')
 import numpy as np
 import csv
 
+READ_TESTSET= "../Data/test.csv"
 READ_FILENAME= "../Data/tweets_20161024_111847_assertionfiltered.csv"
 WRITE_FILENAME="../Data/tweets_20161024_111847_clustered.csv"
 
@@ -18,10 +19,30 @@ re = RumorExtractor()
 with open(READ_FILENAME, encoding='utf-8') as csv_file:
     reader1 = csv.reader(csv_file, delimiter='\t')
     for i, row in enumerate(reader1):
-        clusters.append([tb(str(row)), i])
+        clusters.append([tb(row[1]), row[0]])
 
 # Print status report
-print("File read")
+print("Filter Tweets")
+# The tags of the words that are not filtered out in the tweets
+tags = ['VB', 'VBD', 'VBG', 'VBN', 'VBP', 'VBZ', 'NN', 'NNS', 'NNP', 'NNPS', 'JJ']
+# The words that do need to be filtered out
+filter_out = ['@', 'RT', '[', ']', 'http', 'https', 'urls']
+
+# Tweets are filtered to only contain verbs and nouns
+for tweet in clusters:
+    filtered = ""
+    for i in range(len(tweet[0].words)):
+        for j in range(len(tags)):
+            try:
+                if tweet[0].tags[i][1] == tags[j] and not (tweet[0].tags[i][0] in filter_out):
+                    filtered = filtered + tweet[0].tags[i][0] + " "
+            except:
+                print("Error")
+    # Clusters is represented as a tuple (i, j) where i is the string of merged tweets and j their Tweet ID
+    clusters.append([tb(filtered), [tweet[1]]])
+
+# Print status report
+print("Tweets filtered")
 print(clusters)
 # TF-IDF scores of the filtered tweets
 t_tfidf = []
@@ -54,6 +75,7 @@ while max_val > threshold and n_clusters > 1:
         if clustering == 1:
             t_tfidf.append(vector)
         c_tfidf.append(vector)
+        print(i)
 
     # Compute the similarity between each pair of clusters and store it in the similarity matrix.
     for i in range(n_clusters):
