@@ -4,8 +4,10 @@ import csv
 import pickle
 import re
 import os
-from DataCollection.utils import chunks
+from DataCollection.utils import chunks, sleep_with_countdown
 from datetime import datetime
+from progressbar import ProgressBar
+from sys import stderr
 
 
 ################################################
@@ -25,7 +27,7 @@ def switch_auth(idx):
 def handle_rate_limit(resource, path):
     """ Switch authentication from the current one which is depleted """
     assert isinstance(resource, str) and isinstance(path, str)
-    print('\t--> Handling Rate Limit')
+    print('\t> Handling rate limit', file=stderr)
 
     # Get rate limit status of all OAuth credentials
     _rate_limit_status = []
@@ -42,9 +44,7 @@ def handle_rate_limit(resource, path):
         idx = min(enumerate(_rate_limit_status), key=lambda x: x[1]['reset'])[0]
         sleep_time = _rate_limit_status[idx]['reset'] - int(time.time())
         if sleep_time > 0:
-            print('\t--> Going to sleep now!')
-            time.sleep(sleep_time + 5)
-            print("\t--> Good morning")
+            sleep_with_countdown(sleep_time + 5)
 
     # Pick auth with maximum remaining calls
     switch_auth(idx)
@@ -54,7 +54,7 @@ def remaining_calls(resource, path):
     """ Get the remaining number of calls left for a given API resource """
     assert isinstance(resource, str) and isinstance(path, str)
     result = api.rate_limit_status()['resources'][resource][path]['remaining']
-    print('Remaining calls for', path, ':', result)
+    print('> Remaining calls for', path, ':', result, file=stderr)
     return result
 
 
@@ -172,6 +172,7 @@ def get_tweets_of_user(screen_name, nr_of_tweets=-1, keywords=set(), save_to_csv
                          tweet.text.replace('\n', ' ').replace('\r', ''),
                          tweet.created_at,
                          tweet.retweet_count,
+                         tweet.favorite_count,
                          1 if tweet.in_reply_to_user_id is not None else 0,
                          tweet.in_reply_to_user_id if tweet.in_reply_to_user_id is not None else 0,
                          tweet.in_reply_to_status_id_str if tweet.in_reply_to_status_id_str is not None else 0,
@@ -188,7 +189,7 @@ def get_tweets_of_user(screen_name, nr_of_tweets=-1, keywords=set(), save_to_csv
                          [hashtag['text'] for hashtag in tweet.entities['hashtags']],
                          [url['expanded_url'] for url in tweet.entities['urls']]] for tweet in results]
 
-    features = ["tweet_id", "text", "created_at", "retweet_count", "is_reply", "reply_to_user_id",
+    features = ["tweet_id", "text", "created_at", "#retweets", "#favorites", "is_reply", "reply_to_user_id",
                 "reply_to_tweet_id", "user_id", "screen_name", "user_created_at", "#followers",
                 "#followings", "#statuses", '#listed', "#favourites", "verified", "keywords",
                 "hashtags", "urls"]
@@ -243,6 +244,44 @@ def get_friends_of_user(screen_name, save_to_csv=True):
 
     features = ["user_screen_name", "friend_id", "friend_screen_name", "friends_#followers",
                 "friends_#followings", "friends_#listed", "friends_#statuses"]
+    if len(filtered_results) > 0 and len(features) != len(filtered_results[0]):
+        print('Features are not aligned to the result!')
+
+    if save_to_csv and len(filtered_results) > 0:
+        with open(os.path.join('results', '%s_friends.csv' % screen_name), 'w', newline='', encoding='utf8') as f:
+            writer = csv.writer(f, delimiter="\t")
+            writer.writerow(features)
+            writer.writerows(filtered_results)
+
+    return features, filtered_results
+
+
+def get_friends_ids_of_user(screen_name, count=5000, save_to_csv=True):
+    """ Get all friends of the given user
+    :param screen_name: Twitter screen name of the given user
+    :param count:
+    :param save_to_csv:
+    :return: List of all friends of given user
+    """
+    assert isinstance(screen_name, str)
+    assert isinstance(count, int)
+    assert isinstance(save_to_csv, bool)
+
+    # Resource from which we want to collect tweets
+    resource, path = 'friends', '/friends/ids'
+
+    # initialize a list to hold all the friends screen names
+    results = []
+
+    for page in cursor_iterator(
+            tweepy.Cursor(api.friends_ids, screen_name=screen_name, count=count).pages(), resource, path):
+        results.extend(page)
+        print('...%s results found so far' % len(results))
+
+    # transform the tweepy friends into a 2D array that will populate the csv
+    filtered_results = [[screen_name, results]]
+
+    features = ["user_screen_name", "friend_ids"]
     if len(filtered_results) > 0 and len(features) != len(filtered_results[0]):
         print('Features are not aligned to the result!')
 
@@ -407,6 +446,34 @@ def lookup_users(user_ids=None, save_to_csv=True):
     return features, filtered_results
 
 
+def get_friends_map_from_tweets(file_name):
+    """
+    Generate a friends map from given tweets dataset. Tweets must contain
+    screen name of user author.
+    :param file_name:
+    :return:
+    """
+    from DataCollection.utils import read_csv_ignore_comments as read_csv
+    df = read_csv(os.path.join('results', file_name))
+    if 'screen_name' in df:
+        with open(os.path.join('results', os.path.splitext(file_name)[0] + '_user_friends_map.csv'),
+                  'w', newline='', encoding='utf8') as f:
+            writer = csv.writer(f, delimiter="\t")
+            bar = ProgressBar()
+            users = set()
+            for i, user in bar(df['screen_name'].iteritems()):
+                if user in users:
+                    continue
+                features, results = get_friends_ids_of_user(user, count=300, save_to_csv=False)
+                if i == 0:
+                    writer.writerow(features)
+                if len(results) > 0:
+                    writer.writerows(results)
+                users.add(user)
+    else:
+        raise TypeError('Given dataframe must be a tweets dataset with screen_name per tweet.')
+
+
 if __name__ == "__main__":
     # Set users from whom to get tweets
     # set_users(list_of_users=['vote_leave', 'BorisJohnson', 'David_Cameron',
@@ -439,4 +506,17 @@ if __name__ == "__main__":
             'OR #Remain ' \
             'OR #voteremain'
     # search_tweets(query, nr_of_tweets=20000, since_id=790324301446676480)#, max_id=790314732670640127)
-    remaining_calls('search', '/search/tweets')
+    # remaining_calls('search', '/search/tweets')
+
+    # Get user friends map
+    get_friends_map_from_tweets(file_name='search_20161102_211623_tweets.csv')
+
+    # user_map = {
+    #     "111", {1112, 1113},
+    #     "1112", {1114, 1113},
+    #     "1113", {111}
+    # }
+    # users = {}
+    # users.retweets
+    # users.likes
+    # "111" in users

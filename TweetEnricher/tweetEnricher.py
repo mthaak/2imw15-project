@@ -565,7 +565,8 @@ class TweetEnricher:
 
     def sentiment(self, text):
         tokens = self.tokenize(text)
-        tokens = [w for w in tokens if not w in set(stopwords.words('english') + self.web_abbreviations + list(string.punctuation))]
+        tokens = [w for w in tokens if
+                  w not in set(stopwords.words('english') + self.web_abbreviations + list(string.punctuation))]
 
         positive_count, is_positive = self.hasPositiveOpinions(tokens)
         negative_count, is_negative = self.hasNegativeOpinions(tokens)
