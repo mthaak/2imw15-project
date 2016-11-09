@@ -7,6 +7,7 @@ from calendar import monthrange
 import nltk
 import re
 import string
+from progressbar import ProgressBar, ETA
 
 
 def read_csv_ignore_comments(file_path, sep="\t", index_col=None, comment_literal='#'):
@@ -16,6 +17,16 @@ def read_csv_ignore_comments(file_path, sep="\t", index_col=None, comment_litera
         f.seek(0)
         df = pd.read_csv(f, sep=sep, index_col=index_col, header=0, skiprows=skip, skip_blank_lines=True)
     return df
+
+
+def sleep_with_countdown(t):
+    import time
+    from sys import stderr
+    print('\t> Going to sleep now!', file=stderr)
+    bar = ProgressBar(widgets=['\t> Remaining sleep ', ETA()])
+    for i in bar(range(t, 0, -1)):
+        time.sleep(1)
+    print('\t> Going morning!', file=stderr)
 
 
 def merge_csvs(files):
@@ -32,6 +43,7 @@ def days_delta(from_date, to_date):
     :param to_date:
     :return:
     """
+    assert isinstance(from_date, date) and isinstance(to_date, date)
     delta = to_date - from_date
     return delta.days
 
@@ -92,6 +104,7 @@ def clean_text(text, log=False):
     if log: print(text)
     text = re.sub('[^\x00-\x7F]', "", text)
     if log: print(text)
+    text = text.strip()
     return text
 
 
@@ -120,6 +133,12 @@ def remove_duplicated_spaces(text):
     return " ".join(text.split())
 
 
+def chunks(l, n):
+    """Yield successive n-sized chunks from l."""
+    for i in range(0, len(l), n):
+        yield l[i:i + n]
+
+
 if __name__ == "__main__":
     # users = ['vote_leave', 'BorisJohnson', 'David_Cameron',
     #          'Nigel_Farage', 'michaelgove', 'George_Osborne']
@@ -136,12 +155,12 @@ if __name__ == "__main__":
 
     df = read_csv_ignore_comments(os.path.join('results', 'search_20161102_211623_tweets.csv'), index_col='tweet_id')
 
-    # Fixing missing reply_to_id's
+    # FIXING MISSING reply_to_id's
     # df['is_reply'] = df['is_reply'].apply(lambda x: 1 if x else 0)
     # df['reply_to_id'] = df.apply(lambda x: -1 if x['is_reply'] == 0 else x['reply_to_id'], axis=1).astype('int64')
     # df.to_csv(os.path.join('results', 'search_20161102_211623_tweets.csv'), sep='\t', encoding='utf-8')
 
-    # Filtering out non-english tweets
+    # FILTERING OUT NON-ENGLISH TWEETS
     # df['is_english'] = df['text'].apply(is_english)
     # print(df.loc[df['is_english']==True, 'text'].head(10))
     # print('======================================')
@@ -152,5 +171,50 @@ if __name__ == "__main__":
     # is_english("See also Brexit. https://t.co/o99kG0hDfg", True)
     # print('======================================')
 
-    # Fixing people without screen_names
-    # print(df['screen_name'].apply(lambda x: len(str(x)) == 0).value_counts())
+    # FIX SCREEN NAMES OF TWEETS
+    # from DataCollection.twitter_api import lookup_users
+    # user_ids = df['user_id'].tolist()
+    # features, results = lookup_users(user_ids=user_ids, save_to_csv=True)
+    # results = dict((x[0], x[1]) for x in results)
+    # # results = read_csv_ignore_comments(os.path.join('results', 'users_lookup_20161104_210746.csv'), index_col='user_id')
+    # results = results.groupby(results.index).first()
+    # print(results.head(5))
+    # for i, row in df.iterrows():
+    #     user_id = row['user_id']
+    #     df.loc[i, 'screen_name'] = results.loc[user_id, 'screen_name'] if user_id in results.index.values else '$unk'
+    # print(df.head(10))
+    # df.to_csv(os.path.join('results', 'search_20161102_211623_tweets1.csv'), sep='\t', encoding='utf-8')
+
+    # FIX in_reply_to_user_id/tweet_id FROM -1 TO 0
+    # df = df.rename(columns={'reply_to_id': 'in_reply_to_user_id'})
+    # df['in_reply_to_user_id'] = df['in_reply_to_user_id'].apply(lambda x: 0 if x < 0 else x)
+    # df.to_csv(os.path.join('results', 'search_20161102_211623_tweets.csv'), sep='\t', encoding='utf-8')
+
+    # change in_reply_to_user_id FROM -1 TO 0
+    # df = df.rename(columns={'reply_to_id': 'in_reply_to_user_id'})
+    # df['in_reply_to_user_id'] = df['in_reply_to_user_id'].apply(lambda x: 0 if x < 0 else x)
+    # df.to_csv(os.path.join('results', 'search_20161102_211623_tweets.csv'), sep='\t', encoding='utf-8')
+
+    # Testing progress bars
+    # from progressbar import Counter, Percentage, ETA
+    # import time, sys
+    # bar = ProgressBar(widgets=[Bar(), Percentage()], max_value=df.shape[0]).start()
+    # count = 0
+    # for i, (tweet_id, row) in bar(enumerate(df.iterrows())):
+    #     # print(tweet_id)
+    #     bar.update(i)
+    # bar.finish()
+
+    # try:
+    #     widgets = ['Processed: ', Counter(), ' (', Percentage(), ') ', ETA()]
+    #     pbar = ProgressBar(widgets=widgets)
+    #     for i in pbar(range(2400)):
+    #         time.sleep(0.01)
+    # except UnicodeError:
+    #     sys.stdout.write('Unicode error: skipping example')
+
+    import pickle as p
+
+    df = p.load(open(os.path.join('results', 'search_20161102_211623_tweets_features.p'), 'rb'))
+    df['controversiality'] = 0
+    print(df.head(30))

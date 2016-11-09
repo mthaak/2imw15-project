@@ -1,16 +1,21 @@
-score,classifier,learning_rate,n_estimators,algorithm
-0.516042128549,AdaBoostClassifier,0.1,25,SAMME.R
-0.548545028206,AdaBoostClassifier,0.1,50,SAMME.R
-0.562780326168,AdaBoostClassifier,0.1,100,SAMME.R
-0.53227248087,AdaBoostClassifier,0.6,25,SAMME.R
-0.586693904357,AdaBoostClassifier,0.6,50,SAMME.R
-0.563959316009,AdaBoostClassifier,0.6,100,SAMME.R
-0.538827485318,AdaBoostClassifier,1.1,25,SAMME.R
-0.583449237413,AdaBoostClassifier,1.1,50,SAMME.R
-0.556181806461,AdaBoostClassifier,1.1,100,SAMME.R
-0.535273340859,AdaBoostClassifier,1.6,25,SAMME.R
-0.594345738034,AdaBoostClassifier,1.6,50,SAMME.R
-0.571464813617,AdaBoostClassifier,1.6,100,SAMME.R
-0.367231780195,AdaBoostClassifier,2.1,25,SAMME.R
-0.218700221818,AdaBoostClassifier,2.1,50,SAMME.R
-0.229648185249,AdaBoostClassifier,2.1,100,SAMME.R
+f1	accuracy	tp	fp	fn	tn	classifier
+0.562185478073	0.391	391	609	0	0	DummyClassifier
+f1	accuracy	tp	fp	fn	tn	classifier
+0.650472334683	0.741	241	109	150	500	LogisticRegression
+f1	accuracy	tp	fp	fn	tn	classifier
+0.655263157895	0.738	249	120	142	489	LinearSVC
+f1	accuracy	tp	fp	fn	tn	classifier
+0.633941093969	0.739	226	96	165	513	MultinomialNB
+f1	accuracy	tp	fp	fn	tn	classifier
+0.619756427605	0.719	229	119	162	490	BernoulliNB
+f1	accuracy	tp	fp	fn	tn	classifier
+0.655307994758	0.737	250	122	141	487	Pipeline
+f1	accuracy	tp	fp	fn	tn	classifier	metric	weights
+0.688396349413	0.761	264	112	127	497	KNeighborsClassifier	hamming	distance
+0.691489361702	0.768	260	101	131	508	KNeighborsClassifier	canberra	distance
+0.682926829268	0.753	266	122	125	487	KNeighborsClassifier	braycurtis	distance
+0.690909090909	0.762	266	113	125	496	KNeighborsClassifier	minkowski	distance
+f1	accuracy	tp	fp	fn	tn	classifier	max_features
+0.668393782383	0.744	258	123	133	486	DecisionTreeClassifier	
+f1	accuracy	tp	fp	fn	tn	classifier	n_estimators	max_features
+0.693773824651	0.759	273	123	118	486	RandomForestClassifier	100	

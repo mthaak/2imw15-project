@@ -1,77 +1,191 @@
-from assertionfilter import *
 import numpy as np
 import csv
-import scipy
-from sklearn import *
+from sklearn import dummy, linear_model, discriminant_analysis, svm, naive_bayes, neighbors, tree, ensemble, metrics, \
+    grid_search, pipeline, decomposition, preprocessing
 import pickle
+import datetime
 
-TWEETS_FILENAME = "../Data/tweets.csv"
-X_FILENAME = "../Data/tweets_X.pickle"
-RESULTS_FILENAME = "./evaluate_classifiers_results.csv"
+TWEETS_FILENAME = "../Data/tweets_20161024_111847_assertionlabeled.csv"
+X_FILENAME = "../Data/04_11/Features.pickle"
+RESULTS_FILENAME = "./04_11_results/evaluate_classifiers_results_0411.csv"
 
-# Get labels from tweets.csv file
+# Get training labels from tweets file
 labels = []
 indices_labeled = []  # indices of labeled tweets
-indices_unlabeled = []  # indices of unlabeled tweets
 with open(TWEETS_FILENAME, encoding='utf-8') as csv_file:
     reader = csv.reader(csv_file, delimiter='\t')
+    next(reader)  # skip header
     for i, row in enumerate(reader):
-        # 0 = NR, 1 = R, 2 = U, -1 = <unlabeled>
-        if row[10] == 'NR':
+        # 0 = not assertion, 1 = assertion, -1 = <unlabeled>
+        if row[-1] == '0':
             labels.append(0)
-        elif row[10] == 'R':
+        elif row[-1] == '1':
             labels.append(1)
-        elif row[10] == 'U':
-            labels.append(2)
         else:
             labels.append(-1)
 
-        if row[10] in ['NR', 'R', 'U']:
+        if row[-1] in ['0', '1']:
             indices_labeled.append(i)
-        else:
-            indices_unlabeled.append(i)
 
 # Convert list to the more convenient Numpy array
-y = np.array(labels)[indices_labeled]
+y = np.array(labels)
 
 # Get feature matrix from file
 with open(X_FILENAME, "rb") as file:
-    X = pickle.load(file)[indices_labeled]
+    X = pickle.load(file)
+X = X.toarray()
 
 ### CLASSIFIERS ###
-# AdaBoostClassifier
-classifier = sklearn.ensemble.AdaBoostClassifier()
-parameters = [
-    {"n_estimators": [25, 50, 100],
-     "learning_rate": [i / 10 for i in range(1, 25, 5)],
-     "algorithm": ["SAMME.R"]}
-]
+classifiers_with_parameters = []
 
+# dummy
 # DummyClassifier
-# classifier = sklearn.dummy.DummyClassifier(strategy='most_frequent')
-# parameters = []
+classifier = dummy.DummyClassifier(strategy='constant', constant=1)
+parameters = [
+    {
+        # no useful parameters
+    }
+]
+classifiers_with_parameters.append((classifier, parameters))
 
-# MultinomialNB
-# classifier = sklearn.naive_bayes.MultinomialNB()
-
-# LinearSVC
-# classifier = sklearn.svm.LinearSVC()
-
-# RandomForestClassifier
-# classifier = sklearn.ensemble.RandomForestClassifier(n_estimators=10)
-
+# linear_model
 # LogisticRegression
-# classifier = sklearn.linear_model.LogisticRegression()
+classifier = linear_model.LogisticRegression()
+parameters = [
+    {
+        # no useful parameters
+    }
+]
+classifiers_with_parameters.append((classifier, parameters))
 
-# Evaluate classifier with different parameters
-clf = sklearn.grid_search.GridSearchCV(classifier, parameters, cv=10, scoring='f1_macro')
-clf.fit(X, y)
+# svm
+# LinearSVC
+classifier = svm.LinearSVC()
+parameters = [
+    {
+        # no useful parameters
+    }
+]
+classifiers_with_parameters.append((classifier, parameters))
 
-# Write results to file
-with open(RESULTS_FILENAME, 'w', encoding='utf-8', newline='') as csv_file:
-    writer = csv.writer(csv_file, delimiter=',')
-    header = ["score", "classifier"] + list(clf.best_params_.keys())
-    classifier_name = clf.estimator.__class__.__name__
-    writer.writerow(header)
-    for result in clf.grid_scores_:
-        writer.writerow([result.mean_validation_score, classifier_name] + list(result.parameters.values()))
+# naive_bayes
+# MultinomialNB
+classifier = naive_bayes.MultinomialNB()
+parameters = [
+    {
+        # no useful parameters
+    }
+]
+classifiers_with_parameters.append((classifier, parameters))
+
+# BernoulliNB
+classifier = naive_bayes.BernoulliNB()
+parameters = [
+    {
+        # no useful parameters
+    }
+]
+classifiers_with_parameters.append((classifier, parameters))
+
+# discriminant_analysis
+# LinearDiscrimantAnalysis + BernoulliNB
+classifier = pipeline.make_pipeline(discriminant_analysis.LinearDiscriminantAnalysis(), svm.LinearSVC())
+parameters = [
+    {
+        # no useful parameters
+    }
+]
+classifiers_with_parameters.append((classifier, parameters))
+
+# neighbors
+# KNeighborsClassifier
+classifier = neighbors.KNeighborsClassifier()
+parameters = [
+    {
+        "weights": ["distance"],
+        "metric": ["hamming", "canberra", "braycurtis", "minkowski"]
+    }
+]
+classifiers_with_parameters.append((classifier, parameters))
+
+# tree
+# DecisionTreeClassifier
+classifier = tree.DecisionTreeClassifier()
+parameters = [
+    {
+        "max_features": [None],
+    }
+]
+classifiers_with_parameters.append((classifier, parameters))
+
+# ensemble
+# RandomForestClassifier
+classifier = ensemble.RandomForestClassifier()
+parameters = [
+    {
+        "n_estimators": [100],
+        "max_features": [None],
+    }
+]
+classifiers_with_parameters.append((classifier, parameters))
+
+### Grid Search ###
+n_folds = 10
+n_labels = len(indices_labeled)
+scorings = ['f1', 'accuracy', 'tp', 'fp', 'fn', 'tn']  # names of scorings
+true_glob, pred_glob = [], []
+
+
+def scorer(true, pred):
+    true_glob += true.tolist()
+    pred_glob += pred.tolist()
+    global true_glob, pred_glob
+
+    return metrics.f1_score(true, pred, average='binary', pos_label=1)  # optimize for f1 score
+
+
+my_scorer = metrics.make_scorer(scorer, greater_is_better=True)
+
+
+def avg_over_params(true, pred, n_labels):
+    assert len(true) == len(pred)
+    avg_param_scores = []
+
+    def to_list(matrix):
+        return [matrix[1][1], matrix[0][1], matrix[1][0], matrix[0][0]]
+
+    for i in range(0, len(true), n_labels):
+        avg_param_scores.append(
+            [metrics.f1_score(true[i: i + n_labels], pred[i: i + n_labels], average='binary'),
+             metrics.accuracy_score(true[i: i + n_labels], pred[i: i + n_labels]),
+             ] + to_list(metrics.confusion_matrix(true[i: i + n_labels], pred[i: i + n_labels]))
+        )
+
+    return avg_param_scores
+
+
+def write_results_to_file(clf, scorings, grid_scores):
+    with open(RESULTS_FILENAME, 'a', encoding='utf-8', newline='') as csv_file:
+        writer = csv.writer(csv_file, delimiter='\t')
+
+        # writer.writerow(["time: " + str(datetime.datetime.now())])
+
+        parameter_keys = list(clf.grid_scores_[0].parameters.keys())
+        header = scorings + ["classifier"] + parameter_keys
+        writer.writerow(header)
+
+        classifier_name = clf.estimator.__class__.__name__
+        parameter_values = map(lambda x: list(x.parameters.values()), clf.grid_scores_)
+        for scores, parameters in zip(grid_scores, parameter_values):
+            writer.writerow(scores + [classifier_name] + parameters)
+
+
+# Evaluate classifiers with different parameters
+for (classifier, parameters) in classifiers_with_parameters:
+    try:
+        true_glob, pred_glob = [], []
+        clf = grid_search.GridSearchCV(classifier, parameters, cv=n_folds, scoring=my_scorer)
+        clf.fit(X[indices_labeled], y[indices_labeled])
+        write_results_to_file(clf, scorings, avg_over_params(true_glob, pred_glob, n_labels))
+    except Exception as err:
+        pass

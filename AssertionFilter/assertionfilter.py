@@ -40,12 +40,12 @@ class AssertionFilter:
 
     def filter(self, tweets, X, y):
         """
-        Filters the tweets based on their label.
+        Filters the tweets and features based on their label.
         :param tweets: array of tweets
         :param X: matrix of features
         :param y: array of labels
-        :return: array of filtered tweets, matrix of features and array of labels
+        :return: array of filtered tweets and matrix of features
         """
         assert len(tweets) == X.shape[0] == len(y)
         filter_ids = [i for i in range(len(y)) if y[i] == self.keep_label]
-        return tweets[filter_ids], X[filter_ids], y[filter_ids]
+        return tweets[filter_ids], X[filter_ids]
