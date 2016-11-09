@@ -2,7 +2,6 @@ import os
 from TweetEnricher.tweetEnricher import TweetEnricher
 import numpy as np
 import pandas as pd
-from progressbar import ProgressBar
 import math
 from dateutil import parser
 import ast
@@ -30,7 +29,7 @@ def extract_features(file_name):
     tokens = df['text'].apply(tweet_enricher.tokenize).apply(tweet_enricher.removeStopWords)
 
     # initialize the twitter API
-    cur_dir = os.path.curdir
+    cur_dir = os.path.abspath(os.path.curdir)
     os.chdir(os.path.join(os.path.pardir, 'DataCollection'))
     from DataCollection.twitter_api import get_tweets_of_user, search_tweets
     from DataCollection.utils import days_delta
@@ -45,48 +44,53 @@ def extract_features(file_name):
         users = {}
 
         print('...extracting controversiality, originality, engagement')
-        bar = ProgressBar()  # redirect_stdout=True)
-        for index, row in bar(df.iterrows()):
+        from progressbar import ProgressBar, Counter, ETA, Percentage
+        widgets = ['> Processed: ', Counter(), ' (', Percentage(), ') ', ETA()]
+        bar = ProgressBar(widgets=widgets, max_value=df.shape[0], redirect_stdout=True).start()
+        for i, (tweet_id, row) in bar(enumerate(df.iterrows())):
             if row['screen_name'] not in users:
-                col, tweets = get_tweets_of_user(row['screen_name'], nr_of_tweets=1000, save_to_csv=False)
+                col, tweets = get_tweets_of_user(row['screen_name'], count=1000, save_to_csv=False)
                 tweets = pd.DataFrame(tweets, columns=col).set_index('tweet_id')
 
                 # CONTROVERSIALITY OF USER
-                col, replies = search_tweets('@' + row['screen_name'], nr_of_tweets=1000, save_to_csv=False)
+                col, replies = search_tweets('@' + row['screen_name'], count=500, save_to_csv=False)
                 replies = pd.DataFrame(replies, columns=col).set_index('tweet_id')
                 p_count, n_count = 0, 0
-                for i, r in tweets.iterrows():
-                    i = int(i)
-                    replies_to_i = replies.loc[replies['reply_to_tweet_id'] == i]
-                    replies_to_i = replies_to_i['text'].apply(tweet_enricher.sentiment) \
+                for id, r in tweets.iterrows():
+                    id = int(id)
+                    replies_to_id = replies.loc[replies['reply_to_tweet_id'] == id]
+                    replies_to_id = replies_to_id['text'].apply(tweet_enricher.sentiment) \
                         .apply(lambda x: None if x[0] == x[1] else x[0] > x[1]).value_counts()
-                    p_count += replies_to_i[True] if True in replies_to_i.index.values else 0
-                    n_count += replies_to_i[False] if False in replies_to_i.index.values else 0
-                if p_count + n_count > 0:
-                    controversiality = math.pow(p_count + n_count,
-                                                min(p_count / (n_count + 1), n_count / (p_count + 1)))
-                else:
-                    controversiality = 0
-                df.loc[index, 'controversiality'] = controversiality
+                    p_count += replies_to_id[True] if True in replies_to_id.index.values else 0
+                    n_count += replies_to_id[False] if False in replies_to_id.index.values else 0
+                controversiality = math.pow(p_count + n_count, min(p_count / (n_count + 1), n_count / (p_count + 1))) \
+                    if p_count + n_count > 0 else 0
+                features.set_value(tweet_id, 'controversiality', controversiality)
 
                 # ORIGINALITY OF USER
                 is_rt = tweets['text'].apply(tweet_enricher.tokenize)
                 is_rt = is_rt.apply(tweet_enricher.hasRT).apply(lambda x: x[0] == 1).value_counts()
                 originality = (is_rt[False] if False in is_rt.index.values else 0) / \
                               (is_rt[True] if True in is_rt.index.values else 1)
-                df.loc[index, 'originality'] = originality
+                features.set_value(tweet_id, 'originality', originality)
 
                 # ENGAGEMENT OF USER
                 user_created_at = parser.parse(row['user_created_at'])
-                engagement = (row['#statuses'] + row['#favourites']) / days_delta(user_created_at,
-                                                                                  user_created_at.today())
-                df.loc[index, 'engagement'] = engagement
+                engagement = (row['#statuses'] + row['#favourites']) / (days_delta(user_created_at,
+                                                                                   user_created_at.today()) + 1)
+                features.set_value(tweet_id, 'engagement', engagement)
 
                 users[row['screen_name']] = controversiality, originality, engagement
             else:
-                df.loc[index, 'controversiality'] = users[row['screen_name']][0]
-                df.loc[index, 'originality'] = users[row['screen_name']][1]
-                df.loc[index, 'engagement'] = users[row['screen_name']][2]
+                features.set_value(tweet_id, 'controversiality', users[row['screen_name']][0])
+                features.set_value(tweet_id, 'originality', users[row['screen_name']][1])
+                features.set_value(tweet_id, 'engagement', users[row['screen_name']][2])
+            bar.update(i)
+
+            # After every 100 users, backup the data collected so far
+            if i > 0 and i % 100 == 0:
+                pickle.dump(features, open('features_backup_(%s_processed).p' % i, 'wb'))
+        bar.finish()
 
         print('...extracting credibility')
         features['credibility'] = df['verified']
@@ -95,9 +99,8 @@ def extract_features(file_name):
         features['influence'] = df['#followers']
 
         print('...extracting role')
-        df['#followings'] = df[df['#followings'] == 0] = 1
-        features['role'] = df.apply(lambda x: 0 if x['#followings'] == 0 else x['#followers'] / (
-            x['#followings'] if x['#followings'] > 0 else 1), axis=1)
+        df['#followings'] = df['#followings'].replace(0, 1)
+        features['role'] = df.apply(lambda x: x['#followers'] / x['#followings'], axis=1)
 
         print('...extracting hasVulgarWords')
         features['hasVulgarWords'] = tokens.apply(tweet_enricher.hasVulgarWords)
