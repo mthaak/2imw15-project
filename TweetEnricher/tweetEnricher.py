@@ -291,7 +291,75 @@ class TweetEnricher:
 
         return unigram_count_matrix
 
-    def createNGramCountMatrix(self,collection,SA_tagged_collection):
+    def calculateNGramsEntropy(self, feature_names, SA_tagged_collection ):
+        '''
+        Calculates entropy of n-grams (uni, bi and tri grams)
+        :param feature_names: n-grams
+        :param SA_tagged_collection: speect act tagged collection
+        '''
+
+        #Remove n-grams with #,@,RT, only numbers
+        for i in feature_names:
+            if re.findall('#.*', i):
+                feature_names.remove(i)
+            elif re.findall('[\d]+', i):
+                feature_names.remove(i)
+            elif re.findall('@.*', i):
+                feature_names.remove(i)
+            elif re.findall('RT.*', i):
+                feature_names.remove(i)
+            elif re.findall('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+',i):
+                feature_names.remove(i)
+
+        # Remove potential Brexit keywords
+        for i in feature_names:
+            for j in i.split():
+                if j in self.brexit_keywords:
+                    feature_names.remove(i)
+                    break
+
+
+        for term in nltk.pos_tag(feature_names):
+            # Remove proper nouns
+            if term[1] == "NNP" or term[1] == "NNPS" or term[1] == "NN":
+                feature_names.remove(term[0])
+
+
+        #Find entropy of each n-gram
+        entropy = {}
+        for item in feature_names:
+            entropy[item] = 0
+        total = len(SA_tagged_collection)
+        occurrences = {}
+        tagged_tweets= {}
+        for gram in SA_tagged_collection:
+            if SA_tagged_collection.get(gram)[1] != '':
+                tagged_tweets[gram] = SA_tagged_collection.get(gram)
+
+        for item in feature_names:
+            p = re.compile(re.escape(item))
+            for gram in tagged_tweets:
+                occurrences[tagged_tweets.get(gram)[1]] = 0
+            for gram in tagged_tweets:
+                times_in_tweet = len(re.findall(p, str(tagged_tweets.get(gram)[0])))
+                occurrences[tagged_tweets.get(gram)[1]] += times_in_tweet
+            for gram in tagged_tweets:
+                entropy[item] += -(occurrences[tagged_tweets.get(gram)[1]]/total)*math.log((occurrences[tagged_tweets.get(gram)[1]]+1)/total)
+
+        # n-gram entropies
+        with open('../Data/test/entropy_raw.csv', 'w+', newline='', encoding='utf8') as out_file:
+            writer = csv.writer(out_file)
+            for w in sorted(entropy, key=entropy.get):
+                writer.writerow([w, entropy.get(w)])
+
+        # entropies greater than 0 and less than 0.02 chosen.
+        with open('../Data/test/N_grams_final.csv', 'w+', newline='', encoding='utf8') as out_file:
+            writer = csv.writer(out_file)
+            for w in entropy:
+                if entropy.get(w) > 0 and entropy.get(w) < 0.02 :
+                    writer.writerow([w])
+
+    def createNGramCountMatrix(self,collection,SA_tagged_collection, create_n_grams):
         '''
         Creates a n-gram count matrix of all the tweets. N-grams that have no common nouns and occur more than 5 times
         :return: a count matrix
@@ -300,62 +368,11 @@ class TweetEnricher:
         feature_names = self.vectorizer.get_feature_names()
         print("Size of n grams =  %d " % len(feature_names))
 
-        # #Remove n-grams with #,@,RT, only numbers
-        # for i in feature_names:
-        #     if re.findall('#.*', i):
-        #         feature_names.remove(i)
-        #     elif re.findall('[\d]+', i):
-        #         feature_names.remove(i)
-        #     elif re.findall('@.*', i):
-        #         feature_names.remove(i)
-        #     elif re.findall('RT.*', i):
-        #         feature_names.remove(i)
-        #     elif re.findall('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+',i):
-        #         feature_names.remove(i)
-        #
-        # # Remove potential Brexit keywords
-        # for i in feature_names:
-        #     for j in i.split():
-        #         if j in self.brexit_keywords:
-        #             feature_names.remove(i)
-        #             break
-        #
-        #
-        # for term in nltk.pos_tag(feature_names):
-        #     # Remove proper nouns
-        #     if term[1] == "NNP" or term[1] == "NNPS" or term[1] == "NN":
-        #         feature_names.remove(term[0])
-        #
-        #
-        # #Find entropy of each n-gram
-        # entropy = {}
-        # for item in feature_names:
-        #     entropy[item] = 0
-        # total = len(SA_tagged_collection)
-        # occurrences = {}
-        # tagged_tweets= {}
-        # for gram in SA_tagged_collection:
-        #     if SA_tagged_collection.get(gram)[1] != '':
-        #         tagged_tweets[gram] = SA_tagged_collection.get(gram)
-        #
-        # for item in feature_names:
-        #     p = re.compile(re.escape(item))
-        #     for gram in tagged_tweets:
-        #         occurrences[tagged_tweets.get(gram)[1]] = 0
-        #     for gram in tagged_tweets:
-        #         times_in_tweet = len(re.findall(p, str(tagged_tweets.get(gram)[0])))
-        #         occurrences[tagged_tweets.get(gram)[1]] += times_in_tweet
-        #     for gram in tagged_tweets:
-        #         entropy[item] += -(occurrences[tagged_tweets.get(gram)[1]]/total)*math.log((occurrences[tagged_tweets.get(gram)[1]]+1)/total)
-        #
-        # # n-gram entropies
-        # with open('../Data/test/entropy_raw.csv', 'w+', newline='', encoding='utf8') as out_file:
-        #     writer = csv.writer(out_file)
-        #     for w in sorted(entropy, key=entropy.get):
-        #         writer.writerow([w, entropy.get(w)])
-
-        # USING good n-grams generated before by current commented sections entropy threshold 0.2
-        feature_names = [line.rstrip('\n') for line in open('../Data/Lists/N_grams_final.csv', encoding='utf8')]
+        if create_n_grams :
+            self.calculateNGramsEntropy(feature_names, SA_tagged_collection)
+        else:
+            # USING good n-grams generated beforehand
+            feature_names = [line.rstrip('\n') for line in open('../Data/Lists/N_grams_final.csv', encoding='utf8')]
 
         term_freqs = X.sum(axis=0).A1
         self.n_gram_count_matrix = dict(zip(feature_names, term_freqs))
@@ -365,7 +382,6 @@ class TweetEnricher:
         #     if(self.n_gram_count_matrix.get(w) < 5):
         #         self.n_gram_count_matrix.pop(w)
 
-        # print("Reduced Size of n grams = %d " % len(entropy))
         #
         # # Normalize by dividing by log of number of occurences on n-gram in collection
         # for gram in entropy.copy():
@@ -374,8 +390,7 @@ class TweetEnricher:
         #     else:
         #         entropy.pop(gram)
         #
-        # print("Reduced Size of n grams = %d " % len(entropy))
-        #
+
         # # n-gram entropies
         # with open('../Data/test/entropy.csv', 'w+', newline='', encoding='utf8') as out_file:
         #     writer = csv.writer(out_file)
@@ -407,9 +422,6 @@ class TweetEnricher:
         Features added to a row of data.
         :return: Returns a row with features added
         """
-
-        # FEATURES WITH LOW IG COMMENTED #
-
         row=[]
         basic_row = []
         binary_ngrams_row= []
@@ -422,9 +434,9 @@ class TweetEnricher:
         binary_ngrams_row.append(self.hasVulgarWords(tokens))
         basic_row.append(self.hasVulgarWords(tokens))
         # add Emoticons feature
-        # row.append(self.hasEmoticons(tokens))
-        # basic_row.append(self.hasEmoticons(tokens))
-        # binary_ngrams_row.append(self.hasEmoticons(tokens))
+        row.append(self.hasEmoticons(tokens))
+        basic_row.append(self.hasEmoticons(tokens))
+        binary_ngrams_row.append(self.hasEmoticons(tokens))
         # add Interrogation feature
         row.append(self.isInterrogative(tokens))
         binary_ngrams_row.append(self.isInterrogative(tokens))
@@ -434,12 +446,12 @@ class TweetEnricher:
         binary_ngrams_row.append((self.isExclamatory(tokens)))
         basic_row.append((self.isExclamatory(tokens)))
         # add Abbreviations feature
-        # row.append(self.hasAbbreviations(tokens))
-        # basic_row.append(self.hasAbbreviations(tokens))
-        # binary_ngrams_row.append(self.hasAbbreviations(tokens))
+        row.append(self.hasAbbreviations(tokens))
+        basic_row.append(self.hasAbbreviations(tokens))
+        binary_ngrams_row.append(self.hasAbbreviations(tokens))
         # add twitter jargons feature
-        # row.append(self.hasTwitterJargons(tokens))
-        # basic_row.append(self.hasTwitterJargons(tokens))
+        row.append(self.hasTwitterJargons(tokens))
+        basic_row.append(self.hasTwitterJargons(tokens))
         binary_ngrams_row.append(self.hasTwitterJargons(tokens))
         # add Twiiter specific characters' features- presence and position
         presence, position = self.hasHash(tokens)
@@ -452,25 +464,25 @@ class TweetEnricher:
         binary_ngrams_row.append(presence)
         binary_ngrams_row.append(position)
 
-        # presence, position = self.hasATag(tokens)
-        # row.append(presence)
-        # row.append(position)
-        #
-        # basic_row.append(presence)
-        # basic_row.append(position)
-        #
-        # binary_ngrams_row.append(presence)
-        # binary_ngrams_row.append(position)
-        #
-        # presence, position = self.hasRT(tokens)
-        # row.append(presence)
-        # row.append(position)
-        #
-        # basic_row.append(presence)
-        # basic_row.append(position)
-        #
-        # binary_ngrams_row.append(presence)
-        # binary_ngrams_row.append(position)
+        presence, position = self.hasATag(tokens)
+        row.append(presence)
+        row.append(position)
+
+        basic_row.append(presence)
+        basic_row.append(position)
+
+        binary_ngrams_row.append(presence)
+        binary_ngrams_row.append(position)
+
+        presence, position = self.hasRT(tokens)
+        row.append(presence)
+        row.append(position)
+
+        basic_row.append(presence)
+        basic_row.append(position)
+
+        binary_ngrams_row.append(presence)
+        binary_ngrams_row.append(position)
 
         # add URL presence feature
         row.append(self.hasALink(tokens))
@@ -484,19 +496,19 @@ class TweetEnricher:
               binary_ngrams_row.append(sac_feature_dict.get(verb))
 
         #more than 5 numbers in tweet
-        # row.append(self.hasManyNumbers(tokens))
-        # basic_row.append(self.hasManyNumbers(tokens))
-        # binary_ngrams_row.append(self.hasManyNumbers(tokens))
-        #
-        # #presence of non-ascii characters
-        # row.append(self.hasManyNonAscii(tokens))
-        # basic_row.append(self.hasManyNonAscii(tokens))
-        # binary_ngrams_row.append(self.hasManyNonAscii(tokens))
+        row.append(self.hasManyNumbers(tokens))
+        basic_row.append(self.hasManyNumbers(tokens))
+        binary_ngrams_row.append(self.hasManyNumbers(tokens))
+
+        #presence of non-ascii characters
+        row.append(self.hasManyNonAscii(tokens))
+        basic_row.append(self.hasManyNonAscii(tokens))
+        binary_ngrams_row.append(self.hasManyNonAscii(tokens))
 
         #presence of links to trusted domains
-        # row.append(self.hasLinksToReputedDomains(urls))
-        # binary_ngrams_row.append(self.hasLinksToReputedDomains(urls))
-        # basic_row.append(self.hasLinksToReputedDomains(urls))
+        row.append(self.hasLinksToReputedDomains(urls))
+        binary_ngrams_row.append(self.hasLinksToReputedDomains(urls))
+        basic_row.append(self.hasLinksToReputedDomains(urls))
 
 
         # add positive and negative opinion feature
@@ -505,25 +517,25 @@ class TweetEnricher:
 
         # counts
         row.append(pos_count)
-        #row.append(neg_count)
+        row.append(neg_count)
 
         # boolean- positive/negative opinion feature
         basic_row.append(pos_presence)
-        #basic_row.append(neg_presence)
+        basic_row.append(neg_presence)
 
         binary_ngrams_row.append(pos_presence)
-        #binary_ngrams_row.append(neg_presence)
+        binary_ngrams_row.append(neg_presence)
 
         #sentiment feature
         pos_per, neg_per = self.sentiment(tweet)
-        tweet_sentiment = -1
+        tweet_sentiment = 1
         if pos_per > neg_per:
             tweet_sentiment = 1
         elif pos_per < neg_per:
             tweet_sentiment = 0
 
-        # row.append(tweet_sentiment)
-        # basic_row.append(tweet_sentiment)
+        row.append(tweet_sentiment)
+        basic_row.append(tweet_sentiment)
 
         # n grams from tweet
         n_gram_feature_dict = self.collectNGramFeatures(tweet)
