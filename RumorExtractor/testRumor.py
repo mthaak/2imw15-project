@@ -13,44 +13,30 @@ WRITE_FILENAME="../Data/tweets_20161024_111847_clustered.csv"
 
 # Data of clusters
 clusters = []
+# Data of the tweet IDs
+tweet_ids = []
+# Keep track of the array index clustering
+index_cluster = 0
 
 # Import csv file with tweets
 re = RumorExtractor()
 with open(READ_FILENAME, encoding='utf-8') as csv_file:
-    reader1 = csv.reader(csv_file, delimiter='\t')
-    for i, row in enumerate(reader1):
-        clusters.append([tb(row[1]), row[0]])
+    reader = csv.reader(csv_file, delimiter='\t')
+    header = next(reader)
+    for row in reader:
+        clusters.append([tb(row[1]), index_cluster])
+        tweet_ids.append(row[0])
+        index_cluster += 1
 
 # Print status report
-print("Filter Tweets")
-# The tags of the words that are not filtered out in the tweets
-tags = ['VB', 'VBD', 'VBG', 'VBN', 'VBP', 'VBZ', 'NN', 'NNS', 'NNP', 'NNPS', 'JJ']
-# The words that do need to be filtered out
-filter_out = ['@', 'RT', '[', ']', 'http', 'https', 'urls']
-
-# Tweets are filtered to only contain verbs and nouns
-for tweet in clusters:
-    filtered = ""
-    for i in range(len(tweet[0].words)):
-        for j in range(len(tags)):
-            try:
-                if tweet[0].tags[i][1] == tags[j] and not (tweet[0].tags[i][0] in filter_out):
-                    filtered = filtered + tweet[0].tags[i][0] + " "
-            except:
-                print("Error")
-    # Clusters is represented as a tuple (i, j) where i is the string of merged tweets and j their Tweet ID
-    clusters.append([tb(filtered), [tweet[1]]])
-    clusters.remove(tweet)
-
-# Print status report
-print("Tweets filtered")
+print(tweet_ids)
 print(clusters)
 # TF-IDF scores of the filtered tweets
 t_tfidf = []
 # TF-IDF scores of the final clusters
 c_tfidf = []
 # Keep track of a threshold
-threshold = 0.045
+threshold = 0.04
 # keep track of the maximum value in the similarity matrix. Init 1.0
 max_val = 1.0
 # Keep track of the number of times this while loop is entered
@@ -76,7 +62,7 @@ while max_val > threshold and n_clusters > 1:
         if clustering == 1:
             t_tfidf.append(vector)
         c_tfidf.append(vector)
-        print(i)
+        print("Clustering times {} and processing cluster {}".format(clustering, i))
 
     # Compute the similarity between each pair of clusters and store it in the similarity matrix.
     for i in range(n_clusters):
@@ -124,10 +110,18 @@ for i in range(n_clusters):
         i_tweet = clusters[i][0]
     centers.append(i_tweet)
 
-# Output the set of clusters
+# Connect tweet ids to the array ids
+final_ids = []
+for i in range(n_clusters):
+    ids = []
+    for j in range(len(clusters[i])):
+        ids.append(tweet_ids[clusters[i][j]])
+    final_ids.append(ids)
+
+# Output the set of clusters: is given as follows [list of tweet ids delimited by ','][center tweet id of cluster]
 with open(WRITE_FILENAME, 'w', encoding='utf-8', newline='') as csv_file:
     writer = csv.writer(csv_file, delimiter='\t')
     for i in range(n_clusters):
-        writer.writerow(str(clusters[i]) + " ," + str([centers[i]]))
+        writer.writerow(str(final_ids[i]) + "," + str([tweet_ids[centers[i]]]))
 
 print("Finished with {} clusters".format(n_clusters))
