@@ -24,8 +24,9 @@ with open(READ_TESTSET, encoding='utf-8') as csv_file:
     reader = csv.reader(csv_file, delimiter='\t')
     header = next(reader)
     for row in reader:
-        clusters.append([tb(row[1]), index_cluster])
-        tweet_ids.append(row[0])
+        new_row = row[0].split('\t')
+        clusters.append([tb(new_row[1]), index_cluster])
+        tweet_ids.append(new_row[0])
         index_cluster += 1
 
 # Print status report
@@ -58,10 +59,6 @@ while max_val > threshold and n_clusters > 1:
             # Store the TF-IDF scores of the initial filtered tweets and of the TF-IDF scores of the final clusters
             t_tfidf.append(vector)
             print(i)
-    else:
-        # Compute only the TF-IDF for the cluster that changed
-        vector = {word: re.tfidf(word, clusters[-1][0], clusters) for word in clusters[-1][0].words}
-        tfidfs.append(vector)
 
     # Similarity matrix with size n x n clusters all set to 0.
     simMatrix = [[0.0 for x in range(n_clusters)] for y in range(n_clusters)]
@@ -80,11 +77,16 @@ while max_val > threshold and n_clusters > 1:
     clusters = re.mergeClusters(clusters, clusters[i1], clusters[i2])
     # Update values
     del tfidfs[i1]
-    del tfidfs[i2]
+    del tfidfs[i2-1]
+    # Compute only the TF-IDF for the cluster that changed
+    vector = {word: re.tfidf(word, clusters[-1][0], clusters) for word in clusters[-1][0].words}
+    tfidfs.append(vector)
     n_clusters = len(clusters)
     max_val = simMatrix.max()
     print(max_val)
     print("There are still {} clusters".format(n_clusters))
+    print(len(tfidfs))
+    print(n_clusters)
 
 print(clusters)
 
@@ -97,6 +99,8 @@ for i in range(n_clusters):
 print("Tweets Clustered")
 print(clusters)
 print("Find centers of clusters")
+print(len(tfidfs))
+print(n_clusters)
 # Keep track of the centers of each cluster
 centers = []
 # Find the tweet in the center that has the most words in common in it, is the rumour
