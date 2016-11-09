@@ -1,4 +1,4 @@
-from RumorVerifier.RumorVerifier import *
+from RumorVerifier.rumorVerifier import *
 
 if __name__ == "__main__":
     # EXTRACT FEATURES

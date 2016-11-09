@@ -143,11 +143,11 @@ def check_keyword(s, key):
     return bool(re.search(key, s, re.IGNORECASE))
 
 
-def get_tweets_of_user(screen_name, nr_of_tweets=-1, keywords=set(), save_to_csv=True):
+def get_tweets_of_user(screen_name, count=-1, keywords=set(), save_to_csv=True):
     """ Get all (max 3240 recent) tweets of given screen name """
     assert isinstance(screen_name, str)
     assert isinstance(keywords, set) and all(isinstance(k, str) for k in keywords)
-    assert isinstance(nr_of_tweets, int) and nr_of_tweets >= -1
+    assert isinstance(count, int) and count >= -1
     assert isinstance(save_to_csv, bool)
 
     # Resource from which we want to collect tweets
@@ -162,7 +162,7 @@ def get_tweets_of_user(screen_name, nr_of_tweets=-1, keywords=set(), save_to_csv
                               count=200, include_rts=True).pages(), resource, path):
             results.extend(page)
             print("...%s results downloaded so far" % len(results))
-            if 0 < nr_of_tweets <= len(results):
+            if 0 < count <= len(results):
                 break
     except KeyboardInterrupt:
         pass
@@ -210,7 +210,7 @@ def get_all_tweets_of_users(list_of_users, nr_of_tweets=-1, keywords=set()):
     assert isinstance(list_of_users, list) and all(isinstance(elem, str) for elem in list_of_users)
     for user in list_of_users:
         print('Getting tweets for %s' % user)
-        get_tweets_of_user(user, nr_of_tweets=nr_of_tweets, keywords=keywords)
+        get_tweets_of_user(user, count=nr_of_tweets, keywords=keywords)
 
 
 def get_friends_of_user(screen_name, save_to_csv=True):
@@ -277,6 +277,8 @@ def get_friends_ids_of_user(screen_name, count=5000, save_to_csv=True):
             tweepy.Cursor(api.friends_ids, screen_name=screen_name, count=count).pages(), resource, path):
         results.extend(page)
         print('...%s results found so far' % len(results))
+        if len(results) >= count:
+            break
 
     # transform the tweepy friends into a 2D array that will populate the csv
     filtered_results = [[screen_name, results]]
@@ -327,11 +329,11 @@ def check_query(s):
             or s[0] == '-' or s[0] == '@' or s[0] == '#')
 
 
-def search_tweets(qry, nr_of_tweets=-1, since_id=None, max_id=None, save_to_csv=True):
+def search_tweets(qry, count=-1, since_id=None, max_id=None, save_to_csv=True):
     assert isinstance(qry, str)
     assert isinstance(max_id, int) or max_id is None
     assert isinstance(since_id, int) or since_id is None
-    assert isinstance(nr_of_tweets, int) and nr_of_tweets >= -1
+    assert isinstance(count, int) and count >= -1
     assert isinstance(save_to_csv, bool)
 
     # Get all the relevant keywords from the query
@@ -351,7 +353,7 @@ def search_tweets(qry, nr_of_tweets=-1, since_id=None, max_id=None, save_to_csv=
                               max_id=max_id).pages(), resource, path):
             results.extend(page)
             print("...%s results downloaded so far" % len(results))
-            if 0 < nr_of_tweets <= len(results):
+            if 0 < count <= len(results):
                 break
     except KeyboardInterrupt:
         pass
@@ -446,13 +448,16 @@ def lookup_users(user_ids=None, save_to_csv=True):
     return features, filtered_results
 
 
-def get_friends_map_from_tweets(file_name):
+def get_friends_map_from_tweets(file_name, count):
     """
     Generate a friends map from given tweets dataset. Tweets must contain
     screen name of user author.
     :param file_name:
     :return:
     """
+    assert isinstance(file_name, str)
+    assert isinstance(count, int)
+
     from DataCollection.utils import read_csv_ignore_comments as read_csv
     df = read_csv(os.path.join('results', file_name))
     if 'screen_name' in df:
@@ -464,7 +469,7 @@ def get_friends_map_from_tweets(file_name):
             for i, user in bar(df['screen_name'].iteritems()):
                 if user in users:
                     continue
-                features, results = get_friends_ids_of_user(user, count=300, save_to_csv=False)
+                features, results = get_friends_ids_of_user(user, count=count, save_to_csv=False)
                 if i == 0:
                     writer.writerow(features)
                 if len(results) > 0:
@@ -509,7 +514,7 @@ if __name__ == "__main__":
     # remaining_calls('search', '/search/tweets')
 
     # Get user friends map
-    get_friends_map_from_tweets(file_name='search_20161102_211623_tweets.csv')
+    get_friends_map_from_tweets(file_name='search_20161102_211623_tweets.csv', count=300)
 
     # user_map = {
     #     "111", {1112, 1113},

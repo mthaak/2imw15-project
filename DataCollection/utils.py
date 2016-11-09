@@ -23,11 +23,10 @@ def sleep_with_countdown(t):
     import time
     from sys import stderr
     print('\t> Going to sleep now!', file=stderr)
-    # time.sleep(0.01)
     bar = ProgressBar(widgets=['\t> Remaining sleep ', ETA()])
     for i in bar(range(t, 0, -1)):
         time.sleep(1)
-    print('\t> Going morning!', file=sys.stderr)
+    print('\t> Going morning!', file=stderr)
 
 
 def merge_csvs(files):
@@ -44,6 +43,7 @@ def days_delta(from_date, to_date):
     :param to_date:
     :return:
     """
+    assert isinstance(from_date, date) and isinstance(to_date, date)
     delta = to_date - from_date
     return delta.days
 
@@ -152,8 +152,6 @@ if __name__ == "__main__":
     #
     # # Test keywords filter
     # print(filter_by_keywords(df, ['people']))
-    sleep_with_countdown(5)
-    quit()
 
     df = read_csv_ignore_comments(os.path.join('results', 'search_20161102_211623_tweets.csv'), index_col='tweet_id')
 
@@ -196,3 +194,27 @@ if __name__ == "__main__":
     # df = df.rename(columns={'reply_to_id': 'in_reply_to_user_id'})
     # df['in_reply_to_user_id'] = df['in_reply_to_user_id'].apply(lambda x: 0 if x < 0 else x)
     # df.to_csv(os.path.join('results', 'search_20161102_211623_tweets.csv'), sep='\t', encoding='utf-8')
+
+    # Testing progress bars
+    # from progressbar import Counter, Percentage, ETA
+    # import time, sys
+    # bar = ProgressBar(widgets=[Bar(), Percentage()], max_value=df.shape[0]).start()
+    # count = 0
+    # for i, (tweet_id, row) in bar(enumerate(df.iterrows())):
+    #     # print(tweet_id)
+    #     bar.update(i)
+    # bar.finish()
+
+    # try:
+    #     widgets = ['Processed: ', Counter(), ' (', Percentage(), ') ', ETA()]
+    #     pbar = ProgressBar(widgets=widgets)
+    #     for i in pbar(range(2400)):
+    #         time.sleep(0.01)
+    # except UnicodeError:
+    #     sys.stdout.write('Unicode error: skipping example')
+
+    import pickle as p
+
+    df = p.load(open(os.path.join('results', 'search_20161102_211623_tweets_features.p'), 'rb'))
+    df['controversiality'] = 0
+    print(df.head(30))

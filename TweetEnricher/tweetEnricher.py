@@ -19,9 +19,9 @@ class TweetEnricher:
         self.negative_opinions = opinion_lexicon.negative()
         self.positive_opinions = opinion_lexicon.positive()
         self.brexit_keywords = [line.rstrip('\n') for line in open('../Data/Lists/BrexitKeywords')]
-        self.vulgar_words = [line.rstrip('\n') for line in open('../Data/Lists/VulgarWordsList')]
+        self.vulgar_words = [line.rstrip('\n').lower() for line in open('../Data/Lists/VulgarWordsList')]
         self.twitter_jargons = [line.rstrip('\n') for line in open('../Data/Lists/TwitterSlangsAndAbbreviations')]
-        self.web_abbreviations = [line.rstrip('\n') for line in open('../Data/Lists/WebAcronymns')]
+        self.web_abbreviations = [line.rstrip('\n').lower() for line in open('../Data/Lists/WebAcronymns')]
         self.emoticons_list = [line.rstrip('\n') for line in open('../Data/Lists/EmojiList')]
         self.pos_emoticons_list = [line.rstrip('\n') for line in open('../Data/Lists/PositiveEmojiList')]
         self.neg_emoticons_list = [line.rstrip('\n') for line in open('../Data/Lists/NegativeEmojiList')]
@@ -103,7 +103,7 @@ class TweetEnricher:
         :return: 1 if present
         '''
         for w in tokens:
-            if w.lower() in [x.lower() for x in self.vulgar_words]:
+            if w.lower() in self.vulgar_words:
                 return 1
         return 0
 
@@ -113,7 +113,7 @@ class TweetEnricher:
         :return: 1 if present
         '''
         for w in tokens:
-            if w.lower() in [x.lower() for x in self.web_abbreviations]:
+            if w.lower() in self.web_abbreviations:
                 return 1
         return 0
 
