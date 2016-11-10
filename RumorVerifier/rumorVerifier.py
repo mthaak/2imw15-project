@@ -21,7 +21,7 @@ def extract_features(tweets, coe_backup_file='', save_to_csv=True, save_to_pickl
     :param save_to_pickle:
     :return: features dataFrame
     """
-    assert isinstance(tweets, pd.DataFrame) and 'tweet_id' in tweets.index
+    assert isinstance(tweets, pd.DataFrame) and 'tweet_id' == tweets.index.name
     assert isinstance(coe_backup_file, str)
     assert isinstance(save_to_csv, bool)
     assert isinstance(save_to_pickle, bool)
@@ -39,7 +39,7 @@ def extract_features(tweets, coe_backup_file='', save_to_csv=True, save_to_pickl
 
     # load features dataframe
     if not coe_backup_file:
-        features = tweets['tweet_id'].to_frame()
+        features = pd.DataFrame(index=tweets.index)
     else:
         features = pickle.load(open(coe_backup_file, 'rb'))
         tweets = tweets.head(features.shape[0])
@@ -47,6 +47,9 @@ def extract_features(tweets, coe_backup_file='', save_to_csv=True, save_to_pickl
 
     # set tweet_id as the index for the features matrix
     features = features.set_index('tweet_id')
+    print(features.index)
+    print(tweets.index)
+    quit()
 
     try:
         if not coe_backup_file:
@@ -107,14 +110,15 @@ def extract_features(tweets, coe_backup_file='', save_to_csv=True, save_to_pickl
             bar.finish()
 
         print('...extracting credibility')
-        print(tweets['verified'].value_counts())
         features['credibility'] = tweets['verified']
 
         print('...extracting influence')
         features['influence'] = tweets['#followers']
 
         print('...extracting role')
-        tweets['#followings'] = tweets['#followings'].replace(0, 1)
+        tweets.set_value(tweets['#followings'] == 0, '#followings', 1)
+        # tweets['#followings'] = tweets['#followings'].replace(0, 1)
+        print(tweets['#followings'].value_counts())
         features['role'] = tweets.apply(lambda x: x['#followers'] / x['#followings'], axis=1)
 
         print('...extracting hasVulgarWords')
@@ -185,8 +189,8 @@ def extract_features(tweets, coe_backup_file='', save_to_csv=True, save_to_pickl
 
 
 def extract_cluster_features(tweets, features, clusters, feature_type='Gaussian'):
-    assert isinstance(tweets, pd.DataFrame) and 'tweet_id' in tweets.index
-    assert isinstance(features, pd.DataFrame) and 'tweet_id' in features.index
+    assert isinstance(tweets, pd.DataFrame) and 'tweet_id' == tweets.index.name
+    assert isinstance(features, pd.DataFrame) and 'tweet_id' == features.index.name
     assert isinstance(clusters, (list, tuple))
     assert all(isinstance(x, list) and all(isinstance(y, int) and y > 0 for y in x) for x in clusters)
     assert isinstance(feature_type, str)
@@ -277,7 +281,7 @@ def extract_cluster_features(tweets, features, clusters, feature_type='Gaussian'
             cl_features.set_value(index, 'hasSource', features['hasSource'].mean())
             cl_features.set_value(index, 'nr_of_sources', features['nr_of_sources'].mean())
             # for key in tweet_enricher.speech_act_verbs:
-            #     cl_df[index, key] = df[key].mean()
+            #     cl_features.set_value(index, key, features[k].mean())
             cl_features.set_value(index, 'has#', features['has#'].mean())
             cl_features.set_value(index, '#Position', features['#Position'].mean())
             cl_features.set_value(index, 'hasRT', features['hasRT'].mean())
@@ -287,66 +291,10 @@ def extract_cluster_features(tweets, features, clusters, feature_type='Gaussian'
             cl_features.set_value(index, 'isRumor', 0)
     elif feature_type == 'Multivariate' or feature_type == 'Mv':
         """ Features must be binary """
-
-        for index, cluster in enumerate(clusters):
-            tweets = tweets.loc[cluster]
-            features = features.loc[cluster]
-
-            # save clusters
-            # df.to_csv(os.path.join('results', os.path.splitext(file_name)[0], 'tweets_cluster_%s.csv' % index))
-
-            # number of tweets and unique users
-            cl_features.set_value(index, '#tweets', features.shape[0])
-            cl_features.set_value(index, '#users', len(tweets['screen_name'].unique()))
-
-            # find count of low, medium and high controversial users
-            cl_features.set_value(index, 'controversialityLow', features['controversiality'].value_counts())
-            cl_features.set_value(index, 'controversialityMedium', features['controversiality'].mean())
-            cl_features.set_value(index, 'controversialityHigh', features['controversiality'].mean())
-
-            # find count of low, medium and high original users
-            cl_features.set_value(index, 'originality_mean', features['originality'].mean())
-            cl_features.set_value(index, 'originality_mean', features['originality'].mean())
-            cl_features.set_value(index, 'originality_mean', features['originality'].mean())
-
-            # find count of low, medium and high active users
-            cl_features.set_value(index, 'engagement_mean', features['engagement'].mean())
-            cl_features.set_value(index, 'engagement_mean', features['engagement'].mean())
-            cl_features.set_value(index, 'engagement_mean', features['engagement'].mean())
-
-            # find count of low, medium and high reach users
-            cl_features.set_value(index, 'influence_mean', features['influence'].mean())
-            cl_features.set_value(index, 'influence_mean', features['influence'].mean())
-            cl_features.set_value(index, 'influence_mean', features['influence'].mean())
-
-            # find count of low, medium and high influence users
-            cl_features.set_value(index, 'role_mean', features['role'].mean())
-            cl_features.set_value(index, 'role_mean', features['role'].mean())
-            cl_features.set_value(index, 'role_mean', features['role'].mean())
-
-            # find the number of credible users
-            cl_features.set_value(index, 'credibility', features[features['screen_name'].unique()].sum())
-            cl_features.set_value(index, 'hasVulgarWords', features['hasVulgarWords'].mean())
-            cl_features.set_value(index, 'hasEmoticons', features['hasEmoticons'].mean())
-            cl_features.set_value(index, 'isInterrogative', features['isInterrogative'].mean())
-            cl_features.set_value(index, 'isExclamatory', features['isExclamatory'].mean())
-            cl_features.set_value(index, 'hasAbbreviations', features['hasAbbreviations'].mean())
-            cl_features.set_value(index, 'hasTwitterJargons', features['hasTwitterJargons'].mean())
-            cl_features.set_value(index, 'hasFPP', features['hasFPP'].mean())
-            cl_features.set_value(index, 'hasSource', features['hasSource'].mean())
-            cl_features.set_value(index, 'nr_of_sources', features['nr_of_sources'].mean())
-            # for key in tweet_enricher.speech_act_verbs:
-            #     cl_df[index, key] = df[key].mean()
-            cl_features.set_value(index, 'has#', features['has#'].mean())
-            cl_features.set_value(index, '#Position', features['#Position'].mean())
-            cl_features.set_value(index, 'hasRT', features['hasRT'].mean())
-            cl_features.set_value(index, 'RTPosition', features['RTPosition'].mean())
-            cl_features.set_value(index, 'has@', features['has@'].mean())
-            cl_features.set_value(index, '@Position', features['@Position'].mean())
-            cl_features.set_value(index, 'isRumor', 0)
+        return NotImplemented
     elif feature_type == 'Multinomial' or feature_type == 'Mn':
         """ Features must counts/categories """
-        
+
         for index, cluster in enumerate(clusters):
             tweets = tweets.loc[cluster]
             features = features.loc[cluster]
@@ -354,39 +302,84 @@ def extract_cluster_features(tweets, features, clusters, feature_type='Gaussian'
             # save clusters
             # features.to_csv(os.path.join('results', os.path.splitext(file_name)[0], 'tweets_cluster_%s.csv' % index))
 
-            cl_features.set_value(index, '#tweets', features.shape[0])
-            cl_features.set_value(index, '#users', len(tweets['screen_name'].unique()))
-            cl_features.set_value(index, 'controversiality', features['controversiality'].sum())
-            cl_features.set_value(index, 'originality_mean', features['originality'].mean())
-            cl_features.set_value(index, 'originality_std', features['originality'].std())
-            cl_features.set_value(index, 'engagement_mean', features['engagement'].mean())
-            cl_features.set_value(index, 'engagement_std', features['engagement'].std())
-            cl_features.set_value(index, 'influence_mean', features['influence'].mean())
-            cl_features.set_value(index, 'influence_std', features['influence'].std())
-            cl_features.set_value(index, 'role_mean', features['role'].mean())
-            cl_features.set_value(index, 'role_std', features['role'].std())
-            cl_features.set_value(index, 'credibility', features['credibility'].mean())
-            cl_features.set_value(index, 'hasVulgarWords', features['hasVulgarWords'].mean())
-            cl_features.set_value(index, 'hasEmoticons', features['hasEmoticons'].mean())
-            cl_features.set_value(index, 'isInterrogative', features['isInterrogative'].mean())
-            cl_features.set_value(index, 'isExclamatory', features['isExclamatory'].mean())
-            cl_features.set_value(index, 'hasAbbreviations', features['hasAbbreviations'].mean())
-            cl_features.set_value(index, 'hasTwitterJargons', features['hasTwitterJargons'].mean())
-            cl_features.set_value(index, 'hasFPP', features['hasFPP'].mean())
-            cl_features.set_value(index, 'hasSource', features['hasSource'].mean())
-            cl_features.set_value(index, 'nr_of_sources', features['nr_of_sources'].mean())
+            # number of tweets and unique users
+            cl_features.set_value(index, '#tweets', tweets.shape[0])
+            cl_features.set_value(index, '#users', tweets['screen_name'].unique().shape[0])
+
+            # find count of low, medium and high controversial users
+            # find count of low, medium and high controversial users
+            features['controversiality'] = normalize(features['controversiality'])
+            bins = (0, 0.05, 0.5, 1)  # TODO: Pick good binning values
+            group_names = ('controversialityLow', 'controversialityMedium', 'controversialityHigh')
+            features['controversiality'] = discretize(features['controversiality'], bins, group_names)
+            features = one_hot_encode(features, 'controversiality')
+            for k in group_names:
+                cl_features.set_value(index, k, features[k].mean() > 0.5)  # TODO: Pick good cut-off value
+
+            # find count of low, medium and high original users
+            features['originality'] = normalize(features['originality'])
+            bins = (0, 0.2, 0.5, 1)  # TODO: Pick good binning values
+            group_names = ('originalityLow', 'originalityMedium', 'originalityHigh')
+            features['originality'] = discretize(features['originality'], bins, group_names)
+            features = one_hot_encode(features, 'originality')
+            for k in group_names:
+                cl_features.set_value(index, k, features[k].mean() > 0.5)  # TODO: Pick good cut-off value
+
+            # find count of low, medium and high active users
+            features['engagement'] = normalize(features['engagement'])
+            bins = (0, 0.2, 0.5, 1)  # TODO: Pick good binning values
+            group_names = ('engagementLow', 'engagementMedium', 'engagementHigh')
+            features['engagement'] = discretize(features['engagement'], bins, group_names)
+            features = one_hot_encode(features, 'engagement')
+            for k in group_names:
+                cl_features.set_value(index, k, features[k].mean() > 0.5)  # TODO: Pick good cut-off value
+
+            # find count of low, medium and high reach users
+            features['influence'] = normalize(features['influence'])
+            bins = (0, 0.3, 0.7, 1)  # TODO: Pick good binning values
+            group_names = ('influenceLow', 'influenceMedium', 'influenceHigh')
+            features['influence'] = discretize(features['influence'], bins, group_names)
+            features = one_hot_encode(features, 'influence')
+            for k in group_names:
+                cl_features.set_value(index, k, features[k].mean() > 0.5)  # TODO: Pick good cut-off value
+
+            # find count of low, medium and high influence users
+            features['role'] = normalize(features['role'])
+            bins = (0, 0.2, 0.5, 1)  # TODO: Pick good binning values
+            group_names = ('roleLow', 'roleMedium', 'roleHigh')
+            features['role'] = discretize(features['role'], bins, group_names)
+            features = one_hot_encode(features, 'role')
+            for k in group_names:
+                cl_features.set_value(index, k, features[k].mean() > 0.5)  # TODO: Pick good cut-off value
+
+            # find the number of credible users
+            temp = features[features['credibility'] == 1].join(tweets)
+            credibility = temp.drop_duplicates(subset='screen_name')['credibility']
+            temp = None
+            cl_features.set_value(index, 'credibilityMean', credibility.mean() > 0.5)  # TODO: Pick good cut-off value
+
+            # other linguistic features
+            cl_features.set_value(index, 'hasVulgarWords', features['hasVulgarWords'].mean() > 0.5)
+            cl_features.set_value(index, 'hasEmoticons', features['hasEmoticons'].mean() > 0.5)
+            cl_features.set_value(index, 'isInterrogative', features['isInterrogative'].mean() > 0.5)
+            cl_features.set_value(index, 'isExclamatory', features['isExclamatory'].mean() > 0.5)
+            cl_features.set_value(index, 'hasAbbreviations', features['hasAbbreviations'].mean() > 0.5)
+            cl_features.set_value(index, 'hasTwitterJargons', features['hasTwitterJargons'].mean() > 0.5)
+            cl_features.set_value(index, 'hasFPP', features['hasFPP'].mean() > 0.5)
+            cl_features.set_value(index, 'hasSource', features['hasSource'].mean() > 0.5)
+            cl_features.set_value(index, 'nr_of_sources', features['nr_of_sources'].mean() > 0.5)
             # for key in tweet_enricher.speech_act_verbs:
-            #     cl_df[index, key] = df[key].mean()
-            cl_features.set_value(index, 'has#', features['has#'].mean())
-            cl_features.set_value(index, '#Position', features['#Position'].mean())
-            cl_features.set_value(index, 'hasRT', features['hasRT'].mean())
-            cl_features.set_value(index, 'RTPosition', features['RTPosition'].mean())
-            cl_features.set_value(index, 'has@', features['has@'].mean())
-            cl_features.set_value(index, '@Position', features['@Position'].mean())
+            #     cl_features.set_value(index, key, features[k].mean() > 0.5)
+            cl_features.set_value(index, 'has#', features['has#'].mean() > 0.5)
+            cl_features.set_value(index, '#Position', features['#Position'].mean() > 0.5)
+            cl_features.set_value(index, 'hasRT', features['hasRT'].mean() > 0.5)
+            cl_features.set_value(index, 'RTPosition', features['RTPosition'].mean() > 0.5)
+            cl_features.set_value(index, 'has@', features['has@'].mean() > 0.5)
+            cl_features.set_value(index, '@Position', features['@Position'].mean() > 0.5)
             cl_features.set_value(index, 'isRumor', 0)
 
         # save features
-        cl_features.to_csv(os.path.join('results', os.path.splitext(path)[0], 'cluster_features.csv'))
+        cl_features.to_csv(os.path.join('results', os.path.splitext(file_path)[0], '_cluster_features.csv'))
     else:
         raise ValueError('Feature type can only be Gaussian(G)/ Multinomial(Mn)/ Multivariate(Mv).')
 
@@ -399,7 +392,7 @@ def classify(df, clf, param_grid={}):
     :param param_grid:
     :return: learned classifier model
     """
-    assert isinstance(df, pd.DataFrame) and 'tweet_id' in df.index
+    assert isinstance(df, pd.DataFrame) and 'tweet_id' == df.index.name
     assert isinstance(param_grid, dict)
     assert clf is not None
 
