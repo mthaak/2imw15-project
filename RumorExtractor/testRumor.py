@@ -24,13 +24,35 @@ with open(READ_TESTSET, encoding='utf-8') as csv_file:
     reader = csv.reader(csv_file, delimiter='\t')
     header = next(reader)
     for row in reader:
-        new_row = row[0].split('\t')
-        clusters.append([tb(new_row[1]), index_cluster])
-        tweet_ids.append(new_row[0])
+        # new_row = row[0].split('\t')
+        clusters.append([tb(row[1]), index_cluster])
+        tweet_ids.append(row[0])
         index_cluster += 1
 
+# Filtering was for some reason creating an infinite loop in the TextBlob code somewhere somehow.
 # Print status report
-print(tweet_ids)
+# print("Filter Tweets")
+# The tags of the words that are not filtered out in the tweets
+# tags = ['VB', 'VBD', 'VBG', 'VBN', 'VBP', 'VBZ', 'NN', 'NNS', 'NNP', 'NNPS', 'JJ']
+# The words that do need to be filtered out
+# filter_out = ['@', 'RT', '[', ']', 'http', 'https', 'urls']
+
+# Tweets are filtered to only contain verbs and nouns
+# for tweet in clusters:
+#     filtered = ""
+#     for i in range(len(tweet[0].words)):
+#         for j in range(len(tags)):
+#             try:
+#                 if tweet[0].tags[i][1] == tags[j] and not (tweet[0].tags[i][0] in filter_out):
+#                     filtered = filtered + tweet[0].tags[i][0] + " "
+#             except:
+#                 print("Error")
+#     Clusters is represented as a tuple (i, j) where i is the string of merged tweets and j their Tweet ID
+    # clusters.append([tb(filtered), [tweet[1]]])
+    # clusters.remove(tweet)
+
+# Print status report
+print("Tweets filtered")
 print(clusters)
 # TF-IDF scores of the filtered tweets
 t_tfidf = []
