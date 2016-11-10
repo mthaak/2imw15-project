@@ -190,12 +190,12 @@ if __name__ == "__main__":
     # df['in_reply_to_user_id'] = df['in_reply_to_user_id'].apply(lambda x: 0 if x < 0 else x)
     # df.to_csv(os.path.join('results', 'search_20161102_211623_tweets.csv'), sep='\t', encoding='utf-8')
 
-    # change in_reply_to_user_id FROM -1 TO 0
+    # CHANGE in_reply_to_user_id FROM -1 TO 0
     # df = df.rename(columns={'reply_to_id': 'in_reply_to_user_id'})
     # df['in_reply_to_user_id'] = df['in_reply_to_user_id'].apply(lambda x: 0 if x < 0 else x)
     # df.to_csv(os.path.join('results', 'search_20161102_211623_tweets.csv'), sep='\t', encoding='utf-8')
 
-    # Testing progress bars
+    # TESTING PROGRESS BARS
     # from progressbar import Counter, Percentage, ETA
     # import time, sys
     # bar = ProgressBar(widgets=[Bar(), Percentage()], max_value=df.shape[0]).start()
@@ -204,7 +204,7 @@ if __name__ == "__main__":
     #     # print(tweet_id)
     #     bar.update(i)
     # bar.finish()
-
+    #
     # try:
     #     widgets = ['Processed: ', Counter(), ' (', Percentage(), ') ', ETA()]
     #     pbar = ProgressBar(widgets=widgets)
@@ -213,8 +213,6 @@ if __name__ == "__main__":
     # except UnicodeError:
     #     sys.stdout.write('Unicode error: skipping example')
 
-    import pickle as p
-
-    df = p.load(open(os.path.join('results', 'search_20161102_211623_tweets_features.p'), 'rb'))
-    df['controversiality'] = 0
-    print(df.head(30))
+    # import pickle as p
+    # df = p.load(open(os.path.join('recovered_features_dataframe.p'), 'rb'))
+    # print(df)

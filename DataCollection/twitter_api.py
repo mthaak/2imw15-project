@@ -54,7 +54,7 @@ def remaining_calls(resource, path):
     """ Get the remaining number of calls left for a given API resource """
     assert isinstance(resource, str) and isinstance(path, str)
     result = api.rate_limit_status()['resources'][resource][path]['remaining']
-    print('> Remaining calls for', path, ':', result, file=stderr)
+    print('> Remaining calls for', path, ':', result, flush=True)
     return result
 
 
@@ -363,6 +363,7 @@ def search_tweets(qry, count=-1, since_id=None, max_id=None, save_to_csv=True):
                          tweet.text.replace('\n', ' ').replace('\r', ''),
                          tweet.created_at,
                          tweet.retweet_count,
+                         tweet.favorite_count,
                          1 if tweet.in_reply_to_user_id is not None else 0,
                          tweet.in_reply_to_user_id if tweet.in_reply_to_user_id is not None else 0,
                          tweet.in_reply_to_status_id if tweet.in_reply_to_status_id is not None else 0,
@@ -379,7 +380,7 @@ def search_tweets(qry, count=-1, since_id=None, max_id=None, save_to_csv=True):
                          [hashtag['text'] for hashtag in tweet.entities['hashtags']],
                          [url['expanded_url'] for url in tweet.entities['urls']]] for tweet in results]
 
-    features = ["tweet_id", "text", "created_at", "retweet_count", "is_reply", "reply_to_user_id",
+    features = ["tweet_id", "text", "created_at", "#retweets", "#favorites", "is_reply", "reply_to_user_id",
                 "reply_to_tweet_id", "user_id", "screen_name", "user_created_at", "#followers",
                 "#followings", "#statuses", '#listed', "#favourites", "verified", "keywords",
                 "hashtags", "urls"]
@@ -465,16 +466,12 @@ def get_friends_map_from_tweets(file_name, count):
                   'w', newline='', encoding='utf8') as f:
             writer = csv.writer(f, delimiter="\t")
             bar = ProgressBar()
-            users = set()
-            for i, user in bar(df['screen_name'].iteritems()):
-                if user in users:
-                    continue
+            for i, user in bar(df['screen_name'].unique().iteritems()):
                 features, results = get_friends_ids_of_user(user, count=count, save_to_csv=False)
                 if i == 0:
                     writer.writerow(features)
                 if len(results) > 0:
                     writer.writerows(results)
-                users.add(user)
     else:
         raise TypeError('Given dataframe must be a tweets dataset with screen_name per tweet.')
 
