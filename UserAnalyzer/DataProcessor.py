@@ -1,106 +1,131 @@
 import csv
 from nltk.corpus import opinion_lexicon
 from UserAnalyzer.OpinionClassifier import *
-
-
+from UserAnalyzer.UserClassifier import *
 class DataProcessor:
 
     CL_NR_RUMOUR = 11
     CL_NR_OPINION = 12
     CL_NR_USER_ID = 1
+    CL_NR_TWEET = 1
+
+    CL_NR_FOLLOWERS = 2
+    CL_NR_FOLLOWINGS = 3
     RATIO_OPINION = 1.5
+
     def __init__(self, tweets_filename, rumours_filename, users_filename):
+        #files
         self.tweets_FileName = tweets_filename
         self.rumours_FileName = rumours_filename
         self.users_FileName = users_filename
+        #models
+        self.models = dict()
         #collections of all tweets, rumours and users
         self.tweets = []
         self.rumours = []
         self.users = []
-        #groups of tweets/users on the corresponding rumour
-        self.tweets_rumours = dict()
-        self.users_rumours = dict()
-        #input for model
-        self.user_features = dict()
+        #groups of tweets/users on the corresponding rumour.
+        self.tweets_rumours = dict() #key: rumour
+        self.users_rumours = dict() #key: rumour
+        #input for model.
+        self.user_features = dict() #key: user_id
         #label for model. Each user has one label for each rumour
-        self.user_labels = dict()
+        self.user_labels = dict() #key: user_id
 
-    def process(self):
+    def process(self, models):
         self.loadData()
-        self.labelOpinion()
+        self.loadModels(models)
+        self.initTweetsProcess()
         self.makeFeaturesOfUsers()
         self.makeLabelsOfUsers()
-        self.splitTweetsAndUsers()
 
     def makeFeatureOfOneUser(self, id):
         """
         Function that calculates the feature of one user
         :param id:
-        :return:
+        :return: Array of feature
         """
-        #TO - DO
-        return [1,2,3]
+        #to-do
+        #1. #follower/#followings
+        user = self.users[id]
+        feature1 = user[DataProcessor.CL_NR_FOLLOWERS]/user[DataProcessor.CL_NR_FOLLOWINGS]
+        #2.
+        return [1, 2, 3]
 
     def makeLabelOfOneUser(self, userid, rumour):
-
+        """
+        Function that determines the category of user. (propagator, stifler, undertermined)
+        :param userid:
+        :param rumour:
+        :return:
+        """
         tweets_by_user = [row for row in self.tweets_rumours[rumour] if row[self.CL_NR_USER_ID] == userid]
         pos_tweets = sum(1 for t in tweets_by_user if t[DataProcessor.CL_NR_OPINION] == 1)
         neg_tweets = sum(1 for t in tweets_by_user if t[DataProcessor.CL_NR_OPINION] == -1)
-        #neu_tweets = sum(1 for t in tweets_by_user if t[DataProcessor.CL_NR_OPINION] == 0)
+        # neu_tweets = sum(1 for t in tweets_by_user if t[DataProcessor.CL_NR_OPINION] == 0)
         ratio = pos_tweets / neg_tweets
         if ratio > self.RATIO_OPINION:
             # Propagator
-            list(self.user_labels[id]).append(1)
+            self.user_labels[id][rumour] = 1
         elif ratio < 1 / self.RATIO_OPINION:
             # Stifler
-            list(self.user_labels[id]).append(-1)
+            self.user_labels[id][rumour] = -1
         else:
             # Undetermined
-            list(self.user_labels[id]).append(0)
-        return 0
+            self.user_labels[id][rumour] = 0
 
     def loadData(self):
         """
         Function that loads the tweets and rumours. Loading data into memory makes program faster.
-        :param tweets_filename:
-        :param rumours_filename:
         :return:
         """
-        with open(self.tweets_FileName, encoding='utf-8') as tweetsFile:
-            tweets = csv.reader(tweetsFile, delimiter='\t')
-            for row in tweets:
+        with open(self.tweets_FileName, encoding='utf-8') as csv_file:
+            reader = csv.reader(csv_file, delimiter='\t')
+            next(reader)  # skip header
+            for i, row in enumerate(reader):
                 self.tweets.append(row)
 
         with open(self.rumours_FileName, encoding='utf-8') as rumoursFile:
-            rumours = csv.reader(rumoursFile, delimiter='\t')
-            for row in rumours:
+            reader = csv.reader(rumoursFile, delimiter='\t')
+            next(reader)  # skip header
+            for row in enumerate(reader):
                 self.rumours.append(row)
 
         with open(self.users_FileName, encoding='utf-8') as usersFile:
-            users = csv.reader(usersFile, delimiter='\t')
-            for row in users:
+            reader = csv.reader(usersFile, delimiter='\t')
+            for row in enumerate(reader):
                 self.users.append(row)
 
-    def labelOpinion(self, opinionClassifier):
+    def loadModels(self, models):
         """
-        Function that labels the opinion of all tweets about a rumour
-        :param opinionClassifier
-        :return: none.
+        Function that loads all necessary models. Currently only OpinionClassifier is needed.
+        :param models: Array of Model
+        :return:
         """
-        for t in self.tweets:
-            t[DataProcessor.CL_NR_OPINION] = opinionClassifier.predictOpinion()
-        return
+        for name, model in models:
+            self.models[name] = model
+
+    def initTweetsProcess(self):
+        """
+        Function that splits tweets, users into groups of rumours and label opinions.
+        :return:
+        """
+        for row in self.tweets:
+            rumour = row[DataProcessor.CL_NR_RUMOUR]
+            row[DataProcessor.CL_NR_OPINION] = \
+                self.models["OpinionClassifier"].predictOpinion(row[self.CL_NR_TWEET], self.rumours[rumour])
+            self.tweets_rumours[rumour].append(row)
+            self.users_rumours[rumour].append(row[DataProcessor.CL_NR_USER_ID])
 
     def makeFeaturesOfUsers(self):
         """
         Function that calculates the feature of all users
         :return:
         """
-        # naive features
         for row in self.users:
             id = row[DataProcessor.CL_NR_USER_ID]
             feature = self.makeFeatureOfOneUser(id)
-            self.user_features[id].append(feature)
+            self.user_features[id] = feature
 
     def makeLabelsOfUsers(self):
         """
@@ -112,16 +137,6 @@ class DataProcessor:
                 # make label of a user
                 self.user_labels[user][rumour] = self.makeLabelOfOneUser(user, rumour)
         return
-
-    def splitTweetsAndUsers(self):
-        """
-        Function that splits tweets and users into groups of rumours.
-        :return:
-        """
-        for row in self.tweets:
-            rumour = row[DataProcessor.CL_NR_RUMOUR]
-            self.tweets_rumours[rumour].append(row)
-            self.users_rumours[rumour].append(row[DataProcessor.CL_NR_USER_ID])
 
     def outputData(self, rumour):
         users = self.users_rumours[rumour]

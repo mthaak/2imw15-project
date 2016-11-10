@@ -2,7 +2,9 @@ import sklearn
 import numpy
 from sklearn.model_selection import cross_val_score
 
-class UserClassifier:
+
+
+class Classifier:
 
     def __init__(self, classifier):
         assert hasattr(classifier, 'fit') and callable(classifier.fit)

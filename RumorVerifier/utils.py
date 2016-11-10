@@ -44,16 +44,30 @@ def one_hot_encode(df, column_name):
     return df
 
 
+def remove_null_values(file_name):
+    assert isinstance(file_name, str)
+    df = pickle.load(open(file_name, 'rb'))
+    print(df.head(5))
+    print(df.shape[0])
+    print(df['originality'].value_counts())
+    df = df[df.notnull()]
+    print(df.head(5))
+    print(df.shape[0])
+    pickle.dump(df, open(file_name, "wb"))
+
+
 if __name__ == "__main__":
+    from DataCollection.utils import read_csv_ignore_comments as read_csv
+
+    # TESTING NUMPY ARRAY TYPE CHECKING
     # l = np.array([1, 2])
     # print(type(l).__module__ == np.__name__)
     # print(isinstance(l, np.ndarray))
     # print(max(l))
 
-    from DataCollection.utils import read_csv_ignore_comments as read_csv
-
+    # TESTING PLOTTING FEATURE VALUES
     file_name = 'search_20161102_211623_tweets'
-    # df = pickle.load(open('features_backup_(3500_processed).p', 'rb'))
+    # df = pickle.load(open('features_backup_(5800_processed).p', 'rb'))
     # df1 = read_csv(os.path.join(os.pardir, 'DataCollection', 'results', file_name + '.csv'), index_col='tweet_id')
     # df2 = read_csv(os.path.join('results', file_name + '_features.csv'), sep=',', index_col='tweet_id')
     # df = df2[df2['credibility'] == 1].join(df1)
@@ -74,20 +88,12 @@ if __name__ == "__main__":
     # b.head(100).plot(kind='bar')
     # plt.show()
 
-    # Fix all the features backup to remove NULL values
-    # cl_features = pd.DataFrame()
-    # df = pickle.load(open('features_backup_(6000_processed).p', 'rb'))
-    # print(df.head(10))
-    # df = df[df['originality'].notnull()]
-    # print(df.head(10))
-    # print(df.shape[0])
-    # pickle.dump(df, open('features_backup_(6000_processed).p', "wb"))
-
+    # TESTING DISCRETIZE AND ONE-HOT ENCODING
     # df = df.head(1000)
     # df['controversiality'] = normalize(df['controversiality'])
     # df['originality'] = normalize(df['originality'])
     # df['controversiality'] = normalize(df['controversiality'])
-    # bins = (-0.01, 0.05, 0.5, 1)  # TODO: Pick good binning values
+    # bins = (-0.01, 0.05, 0.5, 1)
     # group_names = ('controversialityLow', 'controversialityMedium', 'controversialityHigh')
     # df['c'] = discretize(df['controversiality'], bins, group_names)
     # features = one_hot_encode(df, 'c')

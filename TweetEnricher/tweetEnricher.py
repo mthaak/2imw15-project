@@ -39,6 +39,8 @@ class TweetEnricher:
                                                   stop_words=list(self.stopset)
                                                              + self.web_abbreviations
                                                              + list(string.punctuation))
+        self.positive_ops = [x.lower() for x in self.positive_opinions]
+        self.negative_ops = [x.lower() for x in self.negative_opinions]
 
 
     def tweetFeatures(self):
@@ -576,20 +578,41 @@ class TweetEnricher:
         return 0
 
     def sentiment(self, text):
+        length = len(text)
         tokens = self.tokenize(text)
-        tokens = [w for w in tokens if
-                  w not in set(stopwords.words('english') + self.web_abbreviations + list(string.punctuation))]
 
-        positive_count, is_positive = self.hasPositiveOpinions(tokens)
-        negative_count, is_negative = self.hasNegativeOpinions(tokens)
+        tokens = [w.lower() for w in tokens if not w in set(stopwords.words('english') + self.web_abbreviations + list(string.punctuation))]
+        tokens = list(set(tokens))
+        positive_count, negative_count = self.simin_opinion_count(tokens)
+        return positive_count, negative_count
 
-        positive_count += self.hasPositiveEmoticons(tokens)
-        negative_count += self.hasNegativeEmoticons(tokens)
 
-        positive_percentage = positive_count / len(tokens)
-        negative_percentage = negative_count / len(tokens)
+    def simin_opinion_count(self, tokens):
+        '''
+                Checks if positive opnions present
+                :return: 1 if positive opinions present. 0 otherwise
+                '''
+        pos_count = 0
+        neg_count = 0
 
-        return positive_percentage, negative_percentage
+
+        for w in tokens:
+            synonyms = []
+            for syn in nltk.corpus.wordnet.synsets(w):
+                for l in syn.lemmas():
+                   synonyms.append(l.name())
+            for syn in synonyms:
+                if syn in self.positive_ops:
+                    pos_count += 1
+                    break
+                elif syn in self.negative_ops:
+                    neg_count += 1
+                    break
+            if w in self.neg_emoticons_list:
+                neg_count += 1
+            if w in self.pos_emoticons_list:
+                pos_count += 1
+        return pos_count, neg_count
 
     def hasFirstPersonPronouns(self, tokens):
         for w in tokens:

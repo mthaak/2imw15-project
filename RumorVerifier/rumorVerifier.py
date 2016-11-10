@@ -11,23 +11,24 @@ from RumorVerifier.utils import *
 from sklearn.grid_search import GridSearchCV
 
 
-def extract_features(file_name, coe_backup_file=''):
+def extract_features(tweets, coe_backup_file='', save_to_csv=True, save_to_pickle=True):
     """
     Extract features from tweets data and save them to pickle.
     Data is loaded from ../DataCollection/results folder.
     :param coe_backup_file:
-    :param file_name: tweets data CSV file name.
+    :param path: tweets data CSV file path.
+    :param save_to_csv:
+    :param save_to_pickle:
     :return: features dataFrame
     """
-    assert isinstance(file_name, str) and len(file_name) > 0
+    assert isinstance(tweets, pd.DataFrame) and 'tweet_id' in tweets.index
     assert isinstance(coe_backup_file, str)
-
-    # read tweets data
-    df = read_csv(os.path.join(os.pardir, 'DataCollection', 'results', file_name))  # , index_col='tweet_id')
+    assert isinstance(save_to_csv, bool)
+    assert isinstance(save_to_pickle, bool)
 
     # initialize the tweet enricher
     tweet_enricher = TweetEnricher()
-    tokens = df['text'].apply(tweet_enricher.tokenize).apply(tweet_enricher.removeStopWords)
+    tokens = tweets['text'].apply(tweet_enricher.tokenize).apply(tweet_enricher.removeStopWords)
 
     # initialize the twitter API
     cur_dir = os.path.abspath(os.path.curdir)
@@ -37,30 +38,29 @@ def extract_features(file_name, coe_backup_file=''):
     os.chdir(cur_dir)
 
     # load features dataframe
-    features = df['tweet_id'].to_frame()
-    # if not coe_backup_file:
-    #     features = df['tweet_id'].to_frame()
-    # else:
-    if coe_backup_file:
-        a = pickle.load(open(coe_backup_file, 'rb'))
-        for k in a.columns:
-            features[k] = a[k]
-        df = df.head(features.shape[0])
+    if not coe_backup_file:
+        features = tweets['tweet_id'].to_frame()
+    else:
+        features = pickle.load(open(coe_backup_file, 'rb'))
+        tweets = tweets.head(features.shape[0])
+        features['tweet_id'] = pd.Series(tweets.index.values)
 
     # set tweet_id as the index for the features matrix
     features = features.set_index('tweet_id')
 
     try:
         if not coe_backup_file:
+            print('...extracting controversiality, originality, engagement')
+
+            # initialize a progress bar
+            from progressbar import ProgressBar, Counter, ETA, Percentage
+            widgets = ['> Processed: ', Counter(), ' (', Percentage(), ') ', ETA()]
+            bar = ProgressBar(widgets=widgets, max_value=tweets.shape[0], redirect_stdout=True).start()
+
             # store the list of users for whom the below features is already computed
             # to prevent recomputing
             users = {}
-
-            print('...extracting controversiality, originality, engagement')
-            from progressbar import ProgressBar, Counter, ETA, Percentage
-            widgets = ['> Processed: ', Counter(), ' (', Percentage(), ') ', ETA()]
-            bar = ProgressBar(widgets=widgets, max_value=df.shape[0], redirect_stdout=True).start()
-            for i, (tweet_id, row) in bar(enumerate(df.iterrows())):
+            for i, (tweet_id, row) in bar(enumerate(tweets.iterrows())):
                 if row['screen_name'] not in users:
                     col, tweets = get_tweets_of_user(row['screen_name'], count=1000, save_to_csv=False)
                     tweets = pd.DataFrame(tweets, columns=col).set_index('tweet_id')
@@ -103,19 +103,19 @@ def extract_features(file_name, coe_backup_file=''):
 
                 # after every 100 users, backup the data collected so far
                 if i > 0 and i % 100 == 0:
-                    pickle.dump(features, open('features_backup_(%s_processed).p' % i, 'wb'))
+                    pickle.dump(features[features.notnull()], open('features_backup_(%s_processed).p' % i, 'wb'))
             bar.finish()
 
         print('...extracting credibility')
-        print(df['verified'].value_counts())
-        features['credibility'] = df['verified']
+        print(tweets['verified'].value_counts())
+        features['credibility'] = tweets['verified']
 
         print('...extracting influence')
-        features['influence'] = df['#followers']
+        features['influence'] = tweets['#followers']
 
         print('...extracting role')
-        df['#followings'] = df['#followings'].replace(0, 1)
-        features['role'] = df.apply(lambda x: x['#followers'] / x['#followings'], axis=1)
+        tweets['#followings'] = tweets['#followings'].replace(0, 1)
+        features['role'] = tweets.apply(lambda x: x['#followers'] / x['#followings'], axis=1)
 
         print('...extracting hasVulgarWords')
         features['hasVulgarWords'] = tokens.apply(tweet_enricher.hasVulgarWords)
@@ -139,7 +139,7 @@ def extract_features(file_name, coe_backup_file=''):
         features['hasFPP'] = tokens.apply(tweet_enricher.hasFirstPersonPronouns)
 
         print('...extracting hasSource, nr_of_sources')
-        urls = df['urls'].apply(ast.literal_eval)
+        urls = tweets['urls'].apply(ast.literal_eval)
         features['hasSource'] = urls.apply(lambda x: 1 if len(x) > 0 else 0)
         features['nr_of_sources'] = urls.apply(lambda x: len(x))
 
@@ -166,45 +166,48 @@ def extract_features(file_name, coe_backup_file=''):
         # print('...extracting hasNegativeOpinions, hasPositiveOpinions')
         # features['hasNegativeOpinions'] = tokens.apply(tweet_enricher.hasNegativeOpinions).apply(lambda x: 1 if x[1] else 0)
         # features['hasPositiveOpinions'] = tokens.apply(tweet_enricher.hasPositiveOpinions).apply(lambda x: 1 if x[1] else 0)
-
-        # print('...creating isRumor column for manual labelling')
-        # features['isRumor'] = pd.Series(0, index=np.arange(features.shape[0]))
     except Exception as e:
         print(e)
-        pickle.dump(features, open('recovered_features_dataframe.p', 'wb'))
+        pickle.dump(features, open('recovered_features.p', 'wb'))
+
+    # check to make sure
     print(features.head(2))
 
-    features.to_csv(os.path.join('results', os.path.splitext(file_name)[0] + '_features.csv'))
-    pickle.dump(features, open(os.path.join('results', os.path.splitext(file_name)[0] + '_features.p'), "wb"))
-    print('Done!')
+    # save features to both csv and pickle
+    save_file_path = os.path.join('results', os.path.splitext(os.path.basename(file_path))[0])
+    if save_to_csv:
+        features.to_csv(save_file_path + '_features.csv')
+    if save_to_pickle:
+        pickle.dump(features, open(save_file_path + '_features.p'), "wb")
 
+    print('Done!')
     return features
 
 
-def extract_cluster_features(file_name, features, feature_type='Gaussian', clusters=[]):
-    assert isinstance(file_name, str) and len(file_name) > 0
+def extract_cluster_features(tweets, features, clusters, feature_type='Gaussian'):
+    assert isinstance(tweets, pd.DataFrame) and 'tweet_id' in tweets.index
     assert isinstance(features, pd.DataFrame) and 'tweet_id' in features.index
-    assert isinstance(feature_type, str)
-    assert isinstance(clusters, list)
+    assert isinstance(clusters, (list, tuple))
     assert all(isinstance(x, list) and all(isinstance(y, int) and y > 0 for y in x) for x in clusters)
-
-    # read tweets data
-    df = read_csv(os.path.join(os.pardir, 'DataCollection', 'results', file_name))
+    assert isinstance(feature_type, str)
+    quit()
 
     # initialize dataframe for storing cluster features
     cl_features = pd.DataFrame()
 
     if feature_type == 'Gaussian' or feature_type == 'G':
+        """ Features must be continuos random variables with normal distribution """
+
         for index, cluster in enumerate(clusters):
-            df = df.loc[cluster]
+            tweets = tweets.loc[cluster]
             features = features.loc[cluster]
 
             # save cluster
             # df.to_csv(os.path.join('results', os.path.splitext(file_name)[0], 'tweets_cluster_%s.csv' % index))
 
             # number of tweets and unique users
-            cl_features.set_value(index, '#tweets', features.shape[0])
-            cl_features.set_value(index, '#users', len(df['screen_name'].unique()))
+            cl_features.set_value(index, '#tweets', tweets.shape[0])
+            cl_features.set_value(index, '#users', tweets['screen_name'].unique().shape[0])
 
             # find count of low, medium and high controversial users
             features['controversiality'] = normalize(features['controversiality'])
@@ -257,9 +260,9 @@ def extract_cluster_features(file_name, features, feature_type='Gaussian', clust
                 cl_features.set_value(index, k + 'Std', features[k].std())
 
             # find the number of credible users
-            df1 = features[features['credibility'] == 1].join(df)
-            credibility = df1.drop_duplicates(subset='screen_name')['credibility']
-            df1 = None
+            temp = features[features['credibility'] == 1].join(tweets)
+            credibility = temp.drop_duplicates(subset='screen_name')['credibility']
+            temp = None
             cl_features.set_value(index, 'credibilityMean', credibility.mean())
             cl_features.set_value(index, '#credibleUsers', credibility.sum())
 
@@ -283,8 +286,10 @@ def extract_cluster_features(file_name, features, feature_type='Gaussian', clust
             cl_features.set_value(index, '@Position', features['@Position'].mean())
             cl_features.set_value(index, 'isRumor', 0)
     elif feature_type == 'Multivariate' or feature_type == 'Mv':
+        """ Features must be binary """
+
         for index, cluster in enumerate(clusters):
-            df = df.loc[cluster]
+            tweets = tweets.loc[cluster]
             features = features.loc[cluster]
 
             # save clusters
@@ -292,7 +297,7 @@ def extract_cluster_features(file_name, features, feature_type='Gaussian', clust
 
             # number of tweets and unique users
             cl_features.set_value(index, '#tweets', features.shape[0])
-            cl_features.set_value(index, '#users', len(df['screen_name'].unique()))
+            cl_features.set_value(index, '#users', len(tweets['screen_name'].unique()))
 
             # find count of low, medium and high controversial users
             cl_features.set_value(index, 'controversialityLow', features['controversiality'].value_counts())
@@ -340,15 +345,17 @@ def extract_cluster_features(file_name, features, feature_type='Gaussian', clust
             cl_features.set_value(index, '@Position', features['@Position'].mean())
             cl_features.set_value(index, 'isRumor', 0)
     elif feature_type == 'Multinomial' or feature_type == 'Mn':
+        """ Features must counts/categories """
+        
         for index, cluster in enumerate(clusters):
-            df = df.loc[cluster]
+            tweets = tweets.loc[cluster]
             features = features.loc[cluster]
 
             # save clusters
             # features.to_csv(os.path.join('results', os.path.splitext(file_name)[0], 'tweets_cluster_%s.csv' % index))
 
             cl_features.set_value(index, '#tweets', features.shape[0])
-            cl_features.set_value(index, '#users', len(df['screen_name'].unique()))
+            cl_features.set_value(index, '#users', len(tweets['screen_name'].unique()))
             cl_features.set_value(index, 'controversiality', features['controversiality'].sum())
             cl_features.set_value(index, 'originality_mean', features['originality'].mean())
             cl_features.set_value(index, 'originality_std', features['originality'].std())
@@ -379,7 +386,7 @@ def extract_cluster_features(file_name, features, feature_type='Gaussian', clust
             cl_features.set_value(index, 'isRumor', 0)
 
         # save features
-        cl_features.to_csv(os.path.join('results', os.path.splitext(file_name)[0], 'cluster_features.csv'))
+        cl_features.to_csv(os.path.join('results', os.path.splitext(path)[0], 'cluster_features.csv'))
     else:
         raise ValueError('Feature type can only be Gaussian(G)/ Multinomial(Mn)/ Multivariate(Mv).')
 
