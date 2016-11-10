@@ -7,6 +7,7 @@ from calendar import monthrange
 import nltk
 import re
 import string
+from progressbar import ProgressBar, ETA
 
 
 def read_csv_ignore_comments(file_path, sep="\t", index_col=None, comment_literal='#'):
@@ -16,6 +17,16 @@ def read_csv_ignore_comments(file_path, sep="\t", index_col=None, comment_litera
         f.seek(0)
         df = pd.read_csv(f, sep=sep, index_col=index_col, header=0, skiprows=skip, skip_blank_lines=True)
     return df
+
+
+def sleep_with_countdown(t):
+    import time
+    from sys import stderr
+    print('\t> Going to sleep now!', file=stderr)
+    bar = ProgressBar(widgets=['\t> Remaining sleep ', ETA()])
+    for i in bar(range(t, 0, -1)):
+        time.sleep(1)
+    print('\t> Going morning!', file=stderr)
 
 
 def merge_csvs(files):
@@ -32,6 +43,7 @@ def days_delta(from_date, to_date):
     :param to_date:
     :return:
     """
+    assert isinstance(from_date, date) and isinstance(to_date, date)
     delta = to_date - from_date
     return delta.days
 
@@ -178,16 +190,29 @@ if __name__ == "__main__":
     # df['in_reply_to_user_id'] = df['in_reply_to_user_id'].apply(lambda x: 0 if x < 0 else x)
     # df.to_csv(os.path.join('results', 'search_20161102_211623_tweets.csv'), sep='\t', encoding='utf-8')
 
-    # 794619950988042240
-    import pickle
-
-    x = pickle.load(open('temp.p', 'rb'))
-    print(x['reply_to_tweet_id'].value_counts())
-    y = x.loc[x['reply_to_tweet_id'] == 1]
-    y = y['text'].apply(lambda x: x)
-    print(y)
-
-    # change $unk to NaN FROM -1 TO 0
+    # CHANGE in_reply_to_user_id FROM -1 TO 0
     # df = df.rename(columns={'reply_to_id': 'in_reply_to_user_id'})
     # df['in_reply_to_user_id'] = df['in_reply_to_user_id'].apply(lambda x: 0 if x < 0 else x)
     # df.to_csv(os.path.join('results', 'search_20161102_211623_tweets.csv'), sep='\t', encoding='utf-8')
+
+    # TESTING PROGRESS BARS
+    # from progressbar import Counter, Percentage, ETA
+    # import time, sys
+    # bar = ProgressBar(widgets=[Bar(), Percentage()], max_value=df.shape[0]).start()
+    # count = 0
+    # for i, (tweet_id, row) in bar(enumerate(df.iterrows())):
+    #     # print(tweet_id)
+    #     bar.update(i)
+    # bar.finish()
+    #
+    # try:
+    #     widgets = ['Processed: ', Counter(), ' (', Percentage(), ') ', ETA()]
+    #     pbar = ProgressBar(widgets=widgets)
+    #     for i in pbar(range(2400)):
+    #         time.sleep(0.01)
+    # except UnicodeError:
+    #     sys.stdout.write('Unicode error: skipping example')
+
+    # import pickle as p
+    # df = p.load(open(os.path.join('recovered_features_dataframe.p'), 'rb'))
+    # print(df)

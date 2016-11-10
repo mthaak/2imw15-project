@@ -3,6 +3,11 @@ import glob
 import os
 from TweetEnricher.tweetEnricher import TweetEnricher
 
+"""
+    Keywords selected for initial data collection querying.
+"""
+
+
 data_directory = os.path.join(os.pardir, 'DataCollection', 'results')
 files = []
 for file in glob.glob(os.path.join(data_directory, '*_tweets.csv')):
