@@ -50,7 +50,7 @@ tfidfs = []
 # Keep clustering until threshold is reached or when there is only one cluster left.
 while max_val > threshold and n_clusters > 1:
     clustering += 1
-
+    # Initial clustering
     if clustering == 1:
         # Compute the TF-IDF vector for each of the tweets
         for i, cluster in enumerate(clusters):
