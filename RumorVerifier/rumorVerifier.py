@@ -6,8 +6,8 @@ import math
 from dateutil import parser
 import ast
 import pickle
+from DataCollection.utils import read_csv_ignore_comments as read_csv
 from RumorVerifier.utils import *
-from sklearn.naive_bayes import GaussianNB
 from sklearn.grid_search import GridSearchCV
 
 
@@ -23,8 +23,7 @@ def extract_features(file_name, coe_backup_file=''):
     assert isinstance(coe_backup_file, str)
 
     # read tweets data
-    df = read_csv(os.path.join(os.pardir, 'DataCollection', 'results', file_name))
-    assert 'tweet_id' in df.index
+    df = read_csv(os.path.join(os.pardir, 'DataCollection', 'results', file_name))  # , index_col='tweet_id')
 
     # initialize the tweet enricher
     tweet_enricher = TweetEnricher()
@@ -38,11 +37,18 @@ def extract_features(file_name, coe_backup_file=''):
     os.chdir(cur_dir)
 
     # load features dataframe
-    if not coe_backup_file:
-        features = df['tweet_id'].to_frame()
-    else:
-        features = pickle.load(open(coe_backup_file, 'rb'))
+    features = df['tweet_id'].to_frame()
+    # if not coe_backup_file:
+    #     features = df['tweet_id'].to_frame()
+    # else:
+    if coe_backup_file:
+        a = pickle.load(open(coe_backup_file, 'rb'))
+        for k in a.columns:
+            features[k] = a[k]
         df = df.head(features.shape[0])
+
+    # set tweet_id as the index for the features matrix
+    features = features.set_index('tweet_id')
 
     try:
         if not coe_backup_file:
@@ -101,6 +107,7 @@ def extract_features(file_name, coe_backup_file=''):
             bar.finish()
 
         print('...extracting credibility')
+        print(df['verified'].value_counts())
         features['credibility'] = df['verified']
 
         print('...extracting influence')
@@ -162,9 +169,6 @@ def extract_features(file_name, coe_backup_file=''):
 
         # print('...creating isRumor column for manual labelling')
         # features['isRumor'] = pd.Series(0, index=np.arange(features.shape[0]))
-
-        # set tweet_id as the index for the features matrix
-        features = features.set_index('tweet_id')
     except Exception as e:
         print(e)
         pickle.dump(features, open('recovered_features_dataframe.p', 'wb'))
@@ -184,193 +188,198 @@ def extract_cluster_features(file_name, features, feature_type='Gaussian', clust
     assert isinstance(clusters, list)
     assert all(isinstance(x, list) and all(isinstance(y, int) and y > 0 for y in x) for x in clusters)
 
+    # read tweets data
+    df = read_csv(os.path.join(os.pardir, 'DataCollection', 'results', file_name))
+
+    # initialize dataframe for storing cluster features
+    cl_features = pd.DataFrame()
+
     if feature_type == 'Gaussian' or feature_type == 'G':
         for index, cluster in enumerate(clusters):
-            cl_df = pd.DataFrame()
-            df = features.loc[cluster]
+            df = df.loc[cluster]
+            features = features.loc[cluster]
 
             # save cluster
             # df.to_csv(os.path.join('results', os.path.splitext(file_name)[0], 'tweets_cluster_%s.csv' % index))
 
             # number of tweets and unique users
-            cl_df[index, '#tweets'] = df.shape[0]
-            cl_df[index, '#users'] = len(df['screen_name'].unique())
+            cl_features.set_value(index, '#tweets', features.shape[0])
+            cl_features.set_value(index, '#users', len(df['screen_name'].unique()))
 
             # find count of low, medium and high controversial users
-            df['controversiality'] = normalize(df['controversiality'])
+            features['controversiality'] = normalize(features['controversiality'])
             bins = (0, 0.05, 0.5, 1)  # TODO: Pick good binning values
             group_names = ('controversialityLow', 'controversialityMedium', 'controversialityHigh')
-            df['controversiality'] = discretize(df['controversiality'], bins, group_names)
-            df = one_hot_encode(df, 'controversiality')
+            features['controversiality'] = discretize(features['controversiality'], bins, group_names)
+            features = one_hot_encode(features, 'controversiality')
             for k in group_names:
-                cl_df[index, k + 'Mean'] = df[k].mean()
-                cl_df[index, k + 'Std'] = df[k].std()
+                cl_features.set_value(index, k + 'Mean', features[k].mean())
+                cl_features.set_value(index, k + 'Std', features[k].std())
 
             # find count of low, medium and high original users
-            df['originality'] = normalize(df['originality'])
+            features['originality'] = normalize(features['originality'])
             bins = (0, 0.2, 0.5, 1)  # TODO: Pick good binning values
             group_names = ('originalityLow', 'originalityMedium', 'originalityHigh')
-            df['originality'] = discretize(df['originality'], bins, group_names)
-            df = one_hot_encode(df, 'originality')
+            features['originality'] = discretize(features['originality'], bins, group_names)
+            features = one_hot_encode(features, 'originality')
             for k in group_names:
-                cl_df[index, k + 'Mean'] = df[k].mean()
-                cl_df[index, k + 'Std'] = df[k].std()
+                cl_features.set_value(index, k + 'Mean', features[k].mean())
+                cl_features.set_value(index, k + 'Std', features[k].std())
 
             # find count of low, medium and high active users
-            df['engagement'] = normalize(df['engagement'])
+            features['engagement'] = normalize(features['engagement'])
             bins = (0, 0.2, 0.5, 1)  # TODO: Pick good binning values
             group_names = ('engagementLow', 'engagementMedium', 'engagementHigh')
-            df['engagement'] = discretize(df['engagement'], bins, group_names)
-            df = one_hot_encode(df, 'engagement')
+            features['engagement'] = discretize(features['engagement'], bins, group_names)
+            features = one_hot_encode(features, 'engagement')
             for k in group_names:
-                cl_df[index, k + 'Mean'] = df[k].mean()
-                cl_df[index, k + 'Std'] = df[k].std()
+                cl_features.set_value(index, k + 'Mean', features[k].mean())
+                cl_features.set_value(index, k + 'Std', features[k].std())
 
             # find count of low, medium and high reach users
-            df['influence'] = normalize(df['influence'])
+            features['influence'] = normalize(features['influence'])
             bins = (0, 0.3, 0.7, 1)  # TODO: Pick good binning values
             group_names = ('influenceLow', 'influenceMedium', 'influenceHigh')
-            df['influence'] = discretize(df['influence'], bins, group_names)
-            df = one_hot_encode(df, 'influence')
+            features['influence'] = discretize(features['influence'], bins, group_names)
+            features = one_hot_encode(features, 'influence')
             for k in group_names:
-                cl_df[index, k + 'Mean'] = df[k].mean()
-                cl_df[index, k + 'Std'] = df[k].std()
+                cl_features.set_value(index, k + 'Mean', features[k].mean())
+                cl_features.set_value(index, k + 'Std', features[k].std())
 
             # find count of low, medium and high influence users
-            df['role'] = normalize(df['role'])
+            features['role'] = normalize(features['role'])
             bins = (0, 0.2, 0.5, 1)  # TODO: Pick good binning values
             group_names = ('roleLow', 'roleMedium', 'roleHigh')
-            df['role'] = discretize(df['role'], bins, group_names)
-            df = one_hot_encode(df, 'role')
+            features['role'] = discretize(features['role'], bins, group_names)
+            features = one_hot_encode(features, 'role')
             for k in group_names:
-                cl_df[index, k + 'Mean'] = df[k].mean()
-                cl_df[index, k + 'Std'] = df[k].std()
+                cl_features.set_value(index, k + 'Mean', features[k].mean())
+                cl_features.set_value(index, k + 'Std', features[k].std())
 
             # find the number of credible users
-            credibility = df.drop_duplicates(subset='screen_name')['credibility']
-            cl_df[index, 'credibilityMean'] = credibility.mean()
-            cl_df[index, '#credibleUsers'] = credibility.sum()
+            df1 = features[features['credibility'] == 1].join(df)
+            credibility = df1.drop_duplicates(subset='screen_name')['credibility']
+            df1 = None
+            cl_features.set_value(index, 'credibilityMean', credibility.mean())
+            cl_features.set_value(index, '#credibleUsers', credibility.sum())
 
             # other linguistic features
-            cl_df[index, 'hasVulgarWords'] = df['hasVulgarWords'].mean()
-            cl_df[index, 'hasEmoticons'] = df['hasEmoticons'].mean()
-            cl_df[index, 'isInterrogative'] = df['isInterrogative'].mean()
-            cl_df[index, 'isExclamatory'] = df['isExclamatory'].mean()
-            cl_df[index, 'hasAbbreviations'] = df['hasAbbreviations'].mean()
-            cl_df[index, 'hasTwitterJargons'] = df['hasTwitterJargons'].mean()
-            cl_df[index, 'hasFPP'] = df['hasFPP'].mean()
-            cl_df[index, 'hasSource'] = df['hasSource'].mean()
-            cl_df[index, 'nr_of_sources'] = df['nr_of_sources'].mean()
+            cl_features.set_value(index, 'hasVulgarWords', features['hasVulgarWords'].mean())
+            cl_features.set_value(index, 'hasEmoticons', features['hasEmoticons'].mean())
+            cl_features.set_value(index, 'isInterrogative', features['isInterrogative'].mean())
+            cl_features.set_value(index, 'isExclamatory', features['isExclamatory'].mean())
+            cl_features.set_value(index, 'hasAbbreviations', features['hasAbbreviations'].mean())
+            cl_features.set_value(index, 'hasTwitterJargons', features['hasTwitterJargons'].mean())
+            cl_features.set_value(index, 'hasFPP', features['hasFPP'].mean())
+            cl_features.set_value(index, 'hasSource', features['hasSource'].mean())
+            cl_features.set_value(index, 'nr_of_sources', features['nr_of_sources'].mean())
             # for key in tweet_enricher.speech_act_verbs:
             #     cl_df[index, key] = df[key].mean()
-            cl_df[index, 'has#'] = df['has#'].mean()
-            cl_df[index, '#Position'] = df['#Position'].mean()
-            cl_df[index, 'hasRT'] = df['hasRT'].mean()
-            cl_df[index, 'RTPosition'] = df['RTPosition'].mean()
-            cl_df[index, 'has@'] = df['has@'].mean()
-            cl_df[index, '@Position'] = df['@Position'].mean()
-            cl_df[index, 'isRumor'] = 0
-
-            # save features
-            cl_df.to_csv(os.path.join('results', os.path.splitext(file_name)[0], 'cluster_%s_features.csv' % index))
+            cl_features.set_value(index, 'has#', features['has#'].mean())
+            cl_features.set_value(index, '#Position', features['#Position'].mean())
+            cl_features.set_value(index, 'hasRT', features['hasRT'].mean())
+            cl_features.set_value(index, 'RTPosition', features['RTPosition'].mean())
+            cl_features.set_value(index, 'has@', features['has@'].mean())
+            cl_features.set_value(index, '@Position', features['@Position'].mean())
+            cl_features.set_value(index, 'isRumor', 0)
     elif feature_type == 'Multivariate' or feature_type == 'Mv':
         for index, cluster in enumerate(clusters):
-            cl_df = pd.DataFrame()
-            df = features.loc[cluster]
+            df = df.loc[cluster]
+            features = features.loc[cluster]
 
             # save clusters
             # df.to_csv(os.path.join('results', os.path.splitext(file_name)[0], 'tweets_cluster_%s.csv' % index))
 
             # number of tweets and unique users
-            cl_df[index, '#tweets'] = df.shape[0]
-            cl_df[index, '#users'] = len(df['screen_name'].unique())
+            cl_features.set_value(index, '#tweets', features.shape[0])
+            cl_features.set_value(index, '#users', len(df['screen_name'].unique()))
 
             # find count of low, medium and high controversial users
-            cl_df[index, 'controversialityLow'] = df['controversiality'].value_counts()
-            cl_df[index, 'controversialityMedium'] = df['controversiality'].mean()
-            cl_df[index, 'controversialityHigh'] = df['controversiality'].mean()
+            cl_features.set_value(index, 'controversialityLow', features['controversiality'].value_counts())
+            cl_features.set_value(index, 'controversialityMedium', features['controversiality'].mean())
+            cl_features.set_value(index, 'controversialityHigh', features['controversiality'].mean())
 
             # find count of low, medium and high original users
-            cl_df[index, 'originality_mean'] = df['originality'].mean()
-            cl_df[index, 'originality_mean'] = df['originality'].mean()
-            cl_df[index, 'originality_mean'] = df['originality'].mean()
+            cl_features.set_value(index, 'originality_mean', features['originality'].mean())
+            cl_features.set_value(index, 'originality_mean', features['originality'].mean())
+            cl_features.set_value(index, 'originality_mean', features['originality'].mean())
 
             # find count of low, medium and high active users
-            cl_df[index, 'engagement_mean'] = df['engagement'].mean()
-            cl_df[index, 'engagement_mean'] = df['engagement'].mean()
-            cl_df[index, 'engagement_mean'] = df['engagement'].mean()
+            cl_features.set_value(index, 'engagement_mean', features['engagement'].mean())
+            cl_features.set_value(index, 'engagement_mean', features['engagement'].mean())
+            cl_features.set_value(index, 'engagement_mean', features['engagement'].mean())
 
             # find count of low, medium and high reach users
-            cl_df[index, 'influence_mean'] = df['influence'].mean()
-            cl_df[index, 'influence_mean'] = df['influence'].mean()
-            cl_df[index, 'influence_mean'] = df['influence'].mean()
+            cl_features.set_value(index, 'influence_mean', features['influence'].mean())
+            cl_features.set_value(index, 'influence_mean', features['influence'].mean())
+            cl_features.set_value(index, 'influence_mean', features['influence'].mean())
 
             # find count of low, medium and high influence users
-            cl_df[index, 'role_mean'] = df['role'].mean()
-            cl_df[index, 'role_mean'] = df['role'].mean()
-            cl_df[index, 'role_mean'] = df['role'].mean()
+            cl_features.set_value(index, 'role_mean', features['role'].mean())
+            cl_features.set_value(index, 'role_mean', features['role'].mean())
+            cl_features.set_value(index, 'role_mean', features['role'].mean())
 
             # find the number of credible users
-            cl_df[index, 'credibility'] = df[df['screen_name'].unique()].sum()
-            cl_df[index, 'hasVulgarWords'] = df['hasVulgarWords'].mean()
-            cl_df[index, 'hasEmoticons'] = df['hasEmoticons'].mean()
-            cl_df[index, 'isInterrogative'] = df['isInterrogative'].mean()
-            cl_df[index, 'isExclamatory'] = df['isExclamatory'].mean()
-            cl_df[index, 'hasAbbreviations'] = df['hasAbbreviations'].mean()
-            cl_df[index, 'hasTwitterJargons'] = df['hasTwitterJargons'].mean()
-            cl_df[index, 'hasFPP'] = df['hasFPP'].mean()
-            cl_df[index, 'hasSource'] = df['hasSource'].mean()
-            cl_df[index, 'nr_of_sources'] = df['nr_of_sources'].mean()
+            cl_features.set_value(index, 'credibility', features[features['screen_name'].unique()].sum())
+            cl_features.set_value(index, 'hasVulgarWords', features['hasVulgarWords'].mean())
+            cl_features.set_value(index, 'hasEmoticons', features['hasEmoticons'].mean())
+            cl_features.set_value(index, 'isInterrogative', features['isInterrogative'].mean())
+            cl_features.set_value(index, 'isExclamatory', features['isExclamatory'].mean())
+            cl_features.set_value(index, 'hasAbbreviations', features['hasAbbreviations'].mean())
+            cl_features.set_value(index, 'hasTwitterJargons', features['hasTwitterJargons'].mean())
+            cl_features.set_value(index, 'hasFPP', features['hasFPP'].mean())
+            cl_features.set_value(index, 'hasSource', features['hasSource'].mean())
+            cl_features.set_value(index, 'nr_of_sources', features['nr_of_sources'].mean())
             # for key in tweet_enricher.speech_act_verbs:
             #     cl_df[index, key] = df[key].mean()
-            cl_df[index, 'has#'] = df['has#'].mean()
-            cl_df[index, '#Position'] = df['#Position'].mean()
-            cl_df[index, 'hasRT'] = df['hasRT'].mean()
-            cl_df[index, 'RTPosition'] = df['RTPosition'].mean()
-            cl_df[index, 'has@'] = df['has@'].mean()
-            cl_df[index, '@Position'] = df['@Position'].mean()
-            cl_df[index, 'isRumor'] = df['isRumor'].mean()
-
-            # save features
-            cl_df.to_csv(os.path.join('results', os.path.splitext(file_name)[0], 'cluster_%s_features.csv' % index))
+            cl_features.set_value(index, 'has#', features['has#'].mean())
+            cl_features.set_value(index, '#Position', features['#Position'].mean())
+            cl_features.set_value(index, 'hasRT', features['hasRT'].mean())
+            cl_features.set_value(index, 'RTPosition', features['RTPosition'].mean())
+            cl_features.set_value(index, 'has@', features['has@'].mean())
+            cl_features.set_value(index, '@Position', features['@Position'].mean())
+            cl_features.set_value(index, 'isRumor', 0)
     elif feature_type == 'Multinomial' or feature_type == 'Mn':
         for index, cluster in enumerate(clusters):
-            cl_df = pd.DataFrame()
-            df = features.loc[cluster]
-            df.to_csv(os.path.join('results', os.path.splitext(file_name)[0], 'tweets_cluster_%s.csv' % index))
-            cl_df[index, '#tweets'] = df.shape[0]
-            cl_df[index, '#users'] = len(df['screen_name'].unique())
-            cl_df[index, 'controversiality'] = df['controversiality'].sum()
-            cl_df[index, 'originality_mean'] = df['originality'].mean()
-            cl_df[index, 'originality_std'] = df['originality'].std()
-            cl_df[index, 'engagement_mean'] = df['engagement'].mean()
-            cl_df[index, 'engagement_std'] = df['engagement'].std()
-            cl_df[index, 'influence_mean'] = df['influence'].mean()
-            cl_df[index, 'influence_std'] = df['influence'].std()
-            cl_df[index, 'role_mean'] = df['role'].mean()
-            cl_df[index, 'role_std'] = df['role'].std()
-            cl_df[index, 'credibility'] = df['credibility'].mean()
-            cl_df[index, 'hasVulgarWords'] = df['hasVulgarWords'].mean()
-            cl_df[index, 'hasEmoticons'] = df['hasEmoticons'].mean()
-            cl_df[index, 'isInterrogative'] = df['isInterrogative'].mean()
-            cl_df[index, 'isExclamatory'] = df['isExclamatory'].mean()
-            cl_df[index, 'hasAbbreviations'] = df['hasAbbreviations'].mean()
-            cl_df[index, 'hasTwitterJargons'] = df['hasTwitterJargons'].mean()
-            cl_df[index, 'hasFPP'] = df['hasFPP'].mean()
-            cl_df[index, 'hasSource'] = df['hasSource'].mean()
-            cl_df[index, 'nr_of_sources'] = df['nr_of_sources'].mean()
+            df = df.loc[cluster]
+            features = features.loc[cluster]
+
+            # save clusters
+            # features.to_csv(os.path.join('results', os.path.splitext(file_name)[0], 'tweets_cluster_%s.csv' % index))
+
+            cl_features.set_value(index, '#tweets', features.shape[0])
+            cl_features.set_value(index, '#users', len(df['screen_name'].unique()))
+            cl_features.set_value(index, 'controversiality', features['controversiality'].sum())
+            cl_features.set_value(index, 'originality_mean', features['originality'].mean())
+            cl_features.set_value(index, 'originality_std', features['originality'].std())
+            cl_features.set_value(index, 'engagement_mean', features['engagement'].mean())
+            cl_features.set_value(index, 'engagement_std', features['engagement'].std())
+            cl_features.set_value(index, 'influence_mean', features['influence'].mean())
+            cl_features.set_value(index, 'influence_std', features['influence'].std())
+            cl_features.set_value(index, 'role_mean', features['role'].mean())
+            cl_features.set_value(index, 'role_std', features['role'].std())
+            cl_features.set_value(index, 'credibility', features['credibility'].mean())
+            cl_features.set_value(index, 'hasVulgarWords', features['hasVulgarWords'].mean())
+            cl_features.set_value(index, 'hasEmoticons', features['hasEmoticons'].mean())
+            cl_features.set_value(index, 'isInterrogative', features['isInterrogative'].mean())
+            cl_features.set_value(index, 'isExclamatory', features['isExclamatory'].mean())
+            cl_features.set_value(index, 'hasAbbreviations', features['hasAbbreviations'].mean())
+            cl_features.set_value(index, 'hasTwitterJargons', features['hasTwitterJargons'].mean())
+            cl_features.set_value(index, 'hasFPP', features['hasFPP'].mean())
+            cl_features.set_value(index, 'hasSource', features['hasSource'].mean())
+            cl_features.set_value(index, 'nr_of_sources', features['nr_of_sources'].mean())
             # for key in tweet_enricher.speech_act_verbs:
             #     cl_df[index, key] = df[key].mean()
-            cl_df[index, 'has#'] = df['has#'].mean()
-            cl_df[index, '#Position'] = df['#Position'].mean()
-            cl_df[index, 'hasRT'] = df['hasRT'].mean()
-            cl_df[index, 'RTPosition'] = df['RTPosition'].mean()
-            cl_df[index, 'has@'] = df['has@'].mean()
-            cl_df[index, '@Position'] = df['@Position'].mean()
-            cl_df[index, 'isRumor'] = df['isRumor'].mean()
+            cl_features.set_value(index, 'has#', features['has#'].mean())
+            cl_features.set_value(index, '#Position', features['#Position'].mean())
+            cl_features.set_value(index, 'hasRT', features['hasRT'].mean())
+            cl_features.set_value(index, 'RTPosition', features['RTPosition'].mean())
+            cl_features.set_value(index, 'has@', features['has@'].mean())
+            cl_features.set_value(index, '@Position', features['@Position'].mean())
+            cl_features.set_value(index, 'isRumor', 0)
 
-            # save features
-            cl_df.to_csv(os.path.join('results', os.path.splitext(file_name)[0], 'cluster_%s_features.csv' % index))
+        # save features
+        cl_features.to_csv(os.path.join('results', os.path.splitext(file_name)[0], 'cluster_features.csv'))
     else:
         raise ValueError('Feature type can only be Gaussian(G)/ Multinomial(Mn)/ Multivariate(Mv).')
 

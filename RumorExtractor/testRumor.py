@@ -130,6 +130,6 @@ for i in range(n_clusters):
 with open(WRITE_FILENAME, 'w', encoding='utf-8', newline='') as csv_file:
     writer = csv.writer(csv_file, delimiter='\t')
     for i in range(n_clusters):
-        writer.writerow(str(final_ids[i]) + "," + str([tweet_ids[centers[i]]]))
+        writer.writerow([final_ids[i], tweet_ids[centers[i]]])
 
 print("Finished with {} clusters".format(n_clusters))

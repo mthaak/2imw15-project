@@ -6,7 +6,7 @@ import os
 
 
 def normalize(a):
-    assert isinstance(a, (np.ndarray, list))
+    assert isinstance(a, (pd.Series, np.ndarray, list))
     return (a - min(a)) / float(max(a) - min(a))
 
 
@@ -25,7 +25,7 @@ def discretize(df, bins, group_names):
     """
     assert isinstance(bins, (list, tuple)) and all(isinstance(k, (int, float)) for k in bins)
     assert isinstance(group_names, (list, tuple)) and all(isinstance(k, str) for k in group_names)
-    assert len(group_names) == len(bins) + 1
+    assert len(bins) == len(group_names) + 1
     return pd.cut(df, bins, labels=group_names)
 
 
@@ -36,9 +36,12 @@ def one_hot_encode(df, column_name):
     :param column_name:
     :return:
     """
+    print(df)
     one_hot = pd.get_dummies(df[column_name])
     # a = df.drop(column_name, axis=1)
-    return df.join(one_hot)
+    for col in one_hot.columns:
+        df[col] = one_hot[col]
+    return df
 
 
 if __name__ == "__main__":
@@ -51,13 +54,13 @@ if __name__ == "__main__":
 
     file_name = 'search_20161102_211623_tweets'
     # df = pickle.load(open('features_backup_(3500_processed).p', 'rb'))
-    df1 = read_csv(os.path.join(os.pardir, 'DataCollection', 'results', file_name + '.csv'), index_col='tweet_id')
-    df2 = read_csv(os.path.join('results', file_name + '_features.csv'), sep=',', index_col='tweet_id')
-    df = df2[df2['credibility'] == 1].join(df1)
-    print(df2['credibility'].value_counts())
-    print(df[['screen_name', 'credibility']].head(10))
-    print(df['credibility'].value_counts())
-    print(df.drop_duplicates(subset='screen_name')['credibility'].mean())
+    # df1 = read_csv(os.path.join(os.pardir, 'DataCollection', 'results', file_name + '.csv'), index_col='tweet_id')
+    # df2 = read_csv(os.path.join('results', file_name + '_features.csv'), sep=',', index_col='tweet_id')
+    # df = df2[df2['credibility'] == 1].join(df1)
+    # print(df2['credibility'].value_counts())
+    # print(df[['screen_name', 'credibility']].head(10))
+    # print(df['credibility'].value_counts())
+    # print(df.drop_duplicates(subset='screen_name')['credibility'].mean())
     # a = df['controversiality'].unique()
     # a = a[~np.isnan(a)]
     # print(a.mean())
@@ -70,3 +73,28 @@ if __name__ == "__main__":
     # print(b.mean(), b.std(), b.max(), b.min())
     # b.head(100).plot(kind='bar')
     # plt.show()
+
+    # Fix all the features backup to remove NULL values
+    # cl_features = pd.DataFrame()
+    # df = pickle.load(open('features_backup_(6000_processed).p', 'rb'))
+    # print(df.head(10))
+    # df = df[df['originality'].notnull()]
+    # print(df.head(10))
+    # print(df.shape[0])
+    # pickle.dump(df, open('features_backup_(6000_processed).p', "wb"))
+
+    # df = df.head(1000)
+    # df['controversiality'] = normalize(df['controversiality'])
+    # df['originality'] = normalize(df['originality'])
+    # df['controversiality'] = normalize(df['controversiality'])
+    # bins = (-0.01, 0.05, 0.5, 1)  # TODO: Pick good binning values
+    # group_names = ('controversialityLow', 'controversialityMedium', 'controversialityHigh')
+    # df['c'] = discretize(df['controversiality'], bins, group_names)
+    # features = one_hot_encode(df, 'c')
+    # print(features)
+    # df1 = pd.DataFrame()
+    # for k in group_names:
+    #     df1['controversialityMean'] = df['controversiality'].apply(lambda x: features[k].mean())
+    #     df1['controversialityStd'] = df['controversiality'].apply(lambda x: features[k].std())
+    # print(df1['controversialityMean'])
+    # print(df1['controversialityStd'])
