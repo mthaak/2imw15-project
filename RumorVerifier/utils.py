@@ -7,12 +7,16 @@ import os
 
 def normalize(a):
     assert isinstance(a, (pd.Series, np.ndarray, list))
-    return (a - min(a)) / float(max(a) - min(a))
+    denom = float(max(a) - min(a))
+    denom = 1 if denom == 0 else denom
+    return (a - min(a)) / denom
 
 
 def standardize(a):
     assert isinstance(a, np.ndarray)
-    return (a - a.mean) / float(max(a) - min(a))
+    denom = float(max(a) - min(a))
+    denom = 1 if denom == 0 else denom
+    return (a - a.mean) / denom
 
 
 def discretize(df, bins, group_names):
@@ -36,7 +40,7 @@ def one_hot_encode(df, column_name):
     :param column_name:
     :return:
     """
-    print(df)
+    assert isinstance(df, pd.DataFrame) and column_name in df.columns
     one_hot = pd.get_dummies(df[column_name])
     # a = df.drop(column_name, axis=1)
     for col in one_hot.columns:
@@ -104,3 +108,7 @@ if __name__ == "__main__":
     #     df1['controversialityStd'] = df['controversiality'].apply(lambda x: features[k].std())
     # print(df1['controversialityMean'])
     # print(df1['controversialityStd'])
+
+    # FIND COLUMNS CONTAINING NaN VALUES
+    df = read_csv(os.path.join('results', 'search_20161102_211623_tweets_cluster_features.csv'), index_col='center_id')
+    print(pd.isnull(df).sum() > 0)

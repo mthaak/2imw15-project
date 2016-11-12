@@ -454,6 +454,7 @@ def get_friends_map_from_tweets(file_name, count):
     Generate a friends map from given tweets dataset. Tweets must contain
     screen name of user author.
     :param file_name:
+    :param count:
     :return:
     """
     assert isinstance(file_name, str)
