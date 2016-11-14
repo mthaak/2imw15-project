@@ -110,5 +110,12 @@ if __name__ == "__main__":
     # print(df1['controversialityStd'])
 
     # FIND COLUMNS CONTAINING NaN VALUES
-    df = read_csv(os.path.join('results', 'search_20161102_211623_tweets_cluster_features.csv'), index_col='center_id')
-    print(pd.isnull(df).sum() > 0)
+    # df = read_csv(os.path.join('results', 'search_20161102_211623_tweets_cluster_features.csv'), index_col='center_id')
+    # print(pd.isnull(df).sum() > 0)
+
+    # RESET isRumor TO 0
+    file_name = 'search_20161102_211623_tweets_cluster_features.csv'
+    df = read_csv(os.path.join('results', file_name), index_col='center_id')
+    for i, row in df.iterrows():
+        df.set_value(i, 'isRumor', 0)
+    df.to_csv(os.path.join('results', file_name), sep='\t')

@@ -385,22 +385,26 @@ def extract_cluster_features(tweets, features, clusters, feature_type='Gaussian'
     # save features
     cl_features.to_csv(os.path.join('results', os.path.splitext(save_file_name)[0] + '_cluster_features.csv'), sep='\t')
 
+    return cl_features
 
-def classify(df, clf, param_grid={}):
+
+def classify(features, clf, param_grid={}):
     """
     Train and evaluates a classifier.
-    :param df:
+    :param features:
     :param clf:
     :param param_grid:
     :return: learned classifier model
     """
-    assert isinstance(df, pd.DataFrame) and 'tweet_id' == df.index.name
+    assert isinstance(features, pd.DataFrame) and 'center_id' == features.index.name
     assert isinstance(param_grid, dict)
     assert clf is not None
 
     # load the data
-    X = df[df.columns.pop('isRumor')].as_matrix()
-    y = df['isRumor'].as_matrix()
+    X_cols = features.columns.values
+    X_cols = np.delete(X_cols, np.argwhere(X_cols == 'isRumor'))
+    X = features[X_cols].as_matrix()
+    y = features['isRumor'].as_matrix()
 
     # instantiate and train the model
     grid = GridSearchCV(clf, param_grid=param_grid, cv=5, scoring='f1', n_jobs=-1)
