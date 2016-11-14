@@ -37,16 +37,11 @@ if __name__ == "__main__":
     # extract cluster features
     # clusters = parse_bad_clusters(path=os.path.join(os.pardir, 'Data',
     #                                                 'search_20161102_211623_tweets_clusters_(1000).csv'))
-    clusters = read_csv(os.path.join('results', 'search_20161102_211623_tweets_clusters_(1000).csv'))
-    clusters = clusters.set_index('center_id')
-    clusters['tweet_ids'] = clusters['tweet_ids'].apply(ast.literal_eval)
-    # clusters = clusters.apply(lambda x: (ast.literal_eval('[' + x[0] + ',' + x[1] + ']')), axis=1)
-    # print(clusters)
-    # clusters = clusters[].tolist()
-    # print(clusters)
-
-    # clusters = pickle.load(open(os.path.join('results', os.path.splitext(file_name)[0] + '_clusters.p')), "rb")
-    extract_cluster_features(df1, df2, feature_type='G', clusters=clusters, save_file_name=file_name)
+    # clusters = read_csv(os.path.join('results', 'search_20161102_211623_tweets_clusters_(1000).csv'))
+    # clusters = clusters.set_index('center_id')
+    # clusters['tweet_ids'] = clusters['tweet_ids'].apply(ast.literal_eval)
+    # df2 = extract_cluster_features(df1, df2, feature_type='G', clusters=clusters, save_file_name=file_name)
+    df2 = read_csv(os.path.join('results', 'search_20161102_211623_tweets_cluster_features.csv'), index_col='center_id')
 
     # classify the clusters
-    classify(df=df2, clf=GaussianNB, param_grid={})
+    classify(features=df2, clf=GaussianNB(), param_grid={})
